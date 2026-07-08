@@ -51,7 +51,8 @@ button{
 <input
     type="file"
     id="fileInput"
-    accept="image/*">
+    accept="image/*"
+    multiple>
 
 <br>
 
@@ -65,7 +66,8 @@ Subir Imagen
 
 <div id="result"></div>
 <div id="fileInfo"></div>
-
+<div id="fileList"></div>
+    
 <progress
     id="progressBar"
     value="0"
@@ -85,32 +87,43 @@ const result = document.getElementById('result');
 const fileInfo = document.getElementById('fileInfo');
 const progressBar = document.getElementById('progressBar');
 
-let selectedFile = null;
+let selectedFiles = [];
 
 fileInput.addEventListener('change', () => {
 
-    selectedFile = fileInput.files[0];
+    selectedFiles =
+    Array.from(fileInput.files);
 
-    if(!selectedFile) return;
+    if(selectedFiles.length === 0)
+        return;
 
-    preview.src = URL.createObjectURL(selectedFile);
-    preview.style.display = 'block';
+    preview.style.display = 'none';
 
-    fileInfo.innerHTML = `
-        <p>
-        <strong>Archivo:</strong> ${selectedFile.name}<br>
-        <strong>Tamaño:</strong>
-        ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-        </p>
+    let html = `
+        <strong>
+        ${selectedFiles.length}
+        archivo(s) seleccionado(s)
+        </strong>
+        <br><br>
     `;
 
+    selectedFiles.forEach(file => {
+
+        html += `
+            📸 ${file.name}
+            (${(file.size/1024/1024).toFixed(2)} MB)
+            <br>
+        `;
+    });
+
+    fileList.innerHTML = html;
 });
 
 async function uploadImage(){
 
-    if(!selectedFile){
+    if(selectedFiles.length === 0){
 
-        alert('Selecciona una imagen');
+        alert('Selecciona al menos una imagen');
         return;
     }
 
@@ -119,35 +132,31 @@ async function uploadImage(){
 
     button.disabled = true;
 
-    result.innerHTML =
-    '⏳ Preparando imagen...';
-
     progressBar.style.display = 'block';
-    progressBar.value = 10;
 
-    const reader = new FileReader();
+    let uploaded = 0;
 
-    reader.onload = async function(){
+    for(const file of selectedFiles){
+
+        result.innerHTML = `
+            📤 Subiendo
+            ${uploaded + 1}
+            de
+            ${selectedFiles.length}
+        `;
+
+        const base64 =
+        await fileToBase64(file);
+
+        const payload = {
+
+            fileName:file.name,
+            mimeType:file.type,
+            base64:base64
+
+        };
 
         try{
-
-            progressBar.value = 40;
-
-            const base64 =
-            reader.result.split(',')[1];
-
-            const payload = {
-
-                fileName:selectedFile.name,
-                mimeType:selectedFile.type,
-                base64:base64
-
-            };
-
-            result.innerHTML =
-            '📤 Subiendo a PhotoFlow...';
-
-            progressBar.value = 60;
 
             const response =
             await fetch(
@@ -158,66 +167,56 @@ async function uploadImage(){
                 }
             );
 
-            progressBar.value = 90;
-
             const data =
             await response.json();
 
             if(data.success){
 
-                progressBar.value = 100;
+                uploaded++;
 
-                result.innerHTML = `
-                    <div style="color:green">
-                        ✅ Imagen subida correctamente
-                        <br><br>
-                        <strong>Archivo:</strong>
-                        ${data.fileName}
-                    </div>
-                `;
-
-                setTimeout(() => {
-
-                    fileInput.value = '';
-
-                    selectedFile = null;
-
-                    preview.style.display = 'none';
-
-                    fileInfo.innerHTML = '';
-
-                    progressBar.style.display = 'none';
-
-                    progressBar.value = 0;
-
-                }, 3000);
-
-            }else{
-
-                result.innerHTML = `
-                    <div style="color:red">
-                    ❌ ${data.error}
-                    </div>
-                `;
+                progressBar.value =
+                Math.round(
+                    (uploaded /
+                    selectedFiles.length) * 100
+                );
             }
 
         }catch(error){
 
-            result.innerHTML = `
-                <div style="color:red">
-                ❌ ${error}
-                </div>
-            `;
+            console.error(error);
         }
+    }
 
-        button.disabled = false;
+    result.innerHTML = `
+        ✅ ${uploaded}
+        archivo(s) cargado(s)
+        correctamente
+    `;
 
-    };
+    button.disabled = false;
 
-    reader.readAsDataURL(selectedFile);
+    selectedFiles = [];
 
 }
+function fileToBase64(file){
 
+    return new Promise((resolve,reject)=>{
+
+        const reader =
+        new FileReader();
+
+        reader.onload = () => {
+
+            resolve(
+                reader.result.split(',')[1]
+            );
+        };
+
+        reader.onerror = reject;
+
+        reader.readAsDataURL(file);
+    });
+}
 </script>
 
 </body>
