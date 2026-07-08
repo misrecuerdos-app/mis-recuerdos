@@ -64,7 +64,14 @@ Subir Imagen
 </button>
 
 <div id="result"></div>
+<div id="fileInfo"></div>
 
+<progress
+    id="progressBar"
+    value="0"
+    max="100"
+    style="width:100%;display:none;margin-top:15px;">
+</progress>
 </div>
 
 <script>
@@ -74,52 +81,76 @@ const WEBAPP_URL =
 
 const fileInput = document.getElementById('fileInput');
 const preview = document.getElementById('preview');
+const result = document.getElementById('result');
+const fileInfo = document.getElementById('fileInfo');
+const progressBar = document.getElementById('progressBar');
+
+let selectedFile = null;
 
 fileInput.addEventListener('change', () => {
 
-    const file = fileInput.files[0];
+    selectedFile = fileInput.files[0];
 
-    if(!file) return;
+    if(!selectedFile) return;
 
-    preview.src = URL.createObjectURL(file);
+    preview.src = URL.createObjectURL(selectedFile);
     preview.style.display = 'block';
+
+    fileInfo.innerHTML = `
+        <p>
+        <strong>Archivo:</strong> ${selectedFile.name}<br>
+        <strong>Tamaño:</strong>
+        ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+        </p>
+    `;
 
 });
 
 async function uploadImage(){
 
-    const file = fileInput.files[0];
-
-    if(!file){
+    if(!selectedFile){
 
         alert('Selecciona una imagen');
         return;
     }
 
-    document.getElementById('result').innerHTML =
-    '⏳ Convirtiendo imagen...';
+    const button =
+    document.querySelector('button');
+
+    button.disabled = true;
+
+    result.innerHTML =
+    '⏳ Preparando imagen...';
+
+    progressBar.style.display = 'block';
+    progressBar.value = 10;
 
     const reader = new FileReader();
 
     reader.onload = async function(){
 
-        const base64 =
-        reader.result.split(',')[1];
-
-        const payload = {
-
-            fileName:file.name,
-            mimeType:file.type,
-            base64:base64
-
-        };
-
         try{
 
-            document.getElementById('result').innerHTML =
-            '📤 Subiendo...';
+            progressBar.value = 40;
 
-            const response = await fetch(
+            const base64 =
+            reader.result.split(',')[1];
+
+            const payload = {
+
+                fileName:selectedFile.name,
+                mimeType:selectedFile.type,
+                base64:base64
+
+            };
+
+            result.innerHTML =
+            '📤 Subiendo a PhotoFlow...';
+
+            progressBar.value = 60;
+
+            const response =
+            await fetch(
                 WEBAPP_URL,
                 {
                     method:'POST',
@@ -127,29 +158,64 @@ async function uploadImage(){
                 }
             );
 
+            progressBar.value = 90;
+
             const data =
             await response.json();
 
             if(data.success){
 
-                document.getElementById('result').innerHTML =
-                '✅ Imagen subida correctamente';
+                progressBar.value = 100;
+
+                result.innerHTML = `
+                    <div style="color:green">
+                        ✅ Imagen subida correctamente
+                        <br><br>
+                        <strong>Archivo:</strong>
+                        ${data.fileName}
+                    </div>
+                `;
+
+                setTimeout(() => {
+
+                    fileInput.value = '';
+
+                    selectedFile = null;
+
+                    preview.style.display = 'none';
+
+                    fileInfo.innerHTML = '';
+
+                    progressBar.style.display = 'none';
+
+                    progressBar.value = 0;
+
+                }, 3000);
 
             }else{
 
-                document.getElementById('result').innerHTML =
-                '❌ ' + data.error;
+                result.innerHTML = `
+                    <div style="color:red">
+                    ❌ ${data.error}
+                    </div>
+                `;
             }
 
         }catch(error){
 
-            document.getElementById('result').innerHTML =
-            '❌ ' + error;
+            result.innerHTML = `
+                <div style="color:red">
+                ❌ ${error}
+                </div>
+            `;
         }
+
+        button.disabled = false;
 
     };
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(selectedFile);
+
 }
 
 </script>
