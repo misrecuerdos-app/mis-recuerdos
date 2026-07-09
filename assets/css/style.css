@@ -310,3 +310,84 @@ body {
 .upload-action {
   margin-top: 14px;
 }
+.sections-hero {
+  min-height: 260px;
+  padding: 26px;
+  color: #ffffff;
+  background:
+    linear-gradient(180deg, rgba(68, 40, 60, 0.15), rgba(68, 40, 60, 0.78)),
+    url("https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80");
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sections-hero h1 {
+  font-size: 36px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.sections-hero p {
+  font-size: 15px;
+  line-height: 1.4;
+  max-width: 310px;
+  opacity: 0.95;
+}
+
+.back-button.light {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  padding: 0;
+  margin: 0;
+  background: rgba(255,255,255,0.22);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.35);
+  backdrop-filter: blur(8px);
+}
+
+.sections-content {
+  padding: 24px;
+  background: #fff7fb;
+  min-height: 520px;
+}
+
+.moment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.moment-card {
+  min-height: 128px;
+  border: none;
+  border-radius: 24px;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffffff, #fff0f7);
+  box-shadow: 0 12px 26px rgba(133, 53, 96, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+}
+
+.moment-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  box-shadow: 0 8px 18px rgba(133, 53, 96, 0.12);
+}
+
+.moment-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: #44283c;
+}
