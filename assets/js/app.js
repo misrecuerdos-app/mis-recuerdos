@@ -77,6 +77,10 @@ function renderApp() {
     renderSections();
     return;
   }
+  if (AppState.navigation.currentPage === "upload") {
+  renderUpload();
+  return;
+}
 }
 
 function renderSections() {
@@ -123,6 +127,79 @@ function renderSectionCard(name, icon) {
 
 function selectSection(sectionName) {
   AppState.upload.section = sectionName;
-  alert("Sección seleccionada: " + sectionName);
+  goTo("upload");
 }
 renderApp();
+function renderUpload() {
+  app.innerHTML = `
+    <main class="app-shell">
+
+      <section class="content section-screen">
+
+        <button class="back-button" onclick="goTo('sections')">
+          ← Regresar
+        </button>
+
+        <h1 class="screen-title">Subir recuerdos</h1>
+
+        <p class="screen-subtitle">
+          Sección seleccionada:
+          <strong>${AppState.upload.section}</strong>
+        </p>
+
+        <div class="upload-box">
+          <div class="upload-icon">📸</div>
+
+          <h2>Selecciona fotos o videos</h2>
+
+          <p>
+            Elige los archivos que quieras compartir en esta parte del evento.
+          </p>
+
+          <input
+            type="file"
+            id="fileInput"
+            accept="image/*,video/*"
+            multiple
+            onchange="handleFileSelection(event)"
+          />
+        </div>
+
+        <div id="selectedFiles" class="selected-files"></div>
+
+      </section>
+
+    </main>
+  `;
+}
+function handleFileSelection(event) {
+  AppState.upload.files = Array.from(event.target.files);
+
+  const selectedFiles = document.getElementById("selectedFiles");
+
+  if (AppState.upload.files.length === 0) {
+    selectedFiles.innerHTML = "";
+    return;
+  }
+
+  selectedFiles.innerHTML = `
+    <div class="selected-summary">
+      <strong>${AppState.upload.files.length}</strong>
+      archivo(s) seleccionado(s)
+    </div>
+
+    ${AppState.upload.files.map(file => `
+      <div class="file-row">
+        <span>📎</span>
+        <div>
+          <strong>${file.name}</strong>
+          <small>${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+        </div>
+      </div>
+    `).join("")}
+
+    <button class="btn btn-primary upload-action">
+      Continuar
+    </button>
+  `;
+}
