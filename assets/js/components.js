@@ -32,18 +32,24 @@ const UI = {
     `;
   },
 
-  sectionCard({ name, icon, index }) {
-    return `
-      <button
-        class="section-tile tile-${index}"
-        onclick="selectSection('${name}')"
-      >
-        <span class="tile-overlay"></span>
-        <span class="tile-icon">${icon}</span>
-        <span class="tile-name">${name}</span>
-      </button>
-    `;
-  },
+ sectionCard({ section }) {
+  return `
+    <button
+      class="section-tile"
+      onclick="selectSection('${section.id}')"
+      style="background-image:
+        linear-gradient(
+          180deg,
+          rgba(0,0,0,0.04),
+          rgba(0,0,0,0.72)
+        ),
+        url('${section.image}')"
+    >
+      <span class="tile-icon">${section.icon}</span>
+      <span class="tile-name">${section.name}</span>
+    </button>
+  `;
+},
 
   statusBox({ value, label }) {
     return `
