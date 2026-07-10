@@ -249,15 +249,6 @@ body {
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
 }
 
-/* Fondos temporales */
-.tile-1 { background: linear-gradient(135deg, #4b1237, #f06aa7); }
-.tile-2 { background: linear-gradient(135deg, #4a2b18, #d8a15d); }
-.tile-3 { background: linear-gradient(135deg, #853c2b, #ffb347); }
-.tile-4 { background: linear-gradient(135deg, #3b123f, #b35ac9); }
-.tile-5 { background: linear-gradient(135deg, #2a163f, #e65d9b); }
-.tile-6 { background: linear-gradient(135deg, #101c4d, #db3d8d); }
-.tile-7 { background: linear-gradient(135deg, #1a102b, #9f5cf7); }
-.tile-8 { background: linear-gradient(135deg, #202020, #777777); }
 
 @media (max-width: 480px) {
   body {
@@ -279,6 +270,8 @@ body {
     transform var(--transition-fast),
     box-shadow var(--transition-fast),
     opacity var(--transition-fast);
+  background-size: cover;
+background-position: center;
 }
 
 .btn:hover,
