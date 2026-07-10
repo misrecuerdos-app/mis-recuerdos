@@ -68,9 +68,6 @@ function renderHome() {
 }
 
 function renderSections() {
-  ${AppState.event.sections.map(section =>
-  UI.sectionCard({ section })
-).join("")}
 
   app.innerHTML = `
     <main class="app-shell white-shell">
@@ -80,13 +77,9 @@ function renderSections() {
       </section>
 
       <section class="sections-grid">
-        ${sections.map(([name, icon], index) =>
-  UI.sectionCard({
-    name,
-    icon,
-    index: index + 1
-  })
-).join("")}
+        ${AppState.event.sections.map(section =>
+        UI.sectionCard({ section })
+        ).join("")}
       </section>
     </main>
   `;
