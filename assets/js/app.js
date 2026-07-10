@@ -33,27 +33,31 @@ function renderHome() {
           </p>
 
           <div class="actions">
-            <button class="btn btn-primary" onclick="goTo('sections')">
-              Subir fotos o videos
-            </button>
+            ${UI.button({
+    text: "Subir fotos o videos",
+    variant: "primary",
+    onClick: "goTo('sections')"
+  })}
 
-            <button class="btn btn-secondary">
-              Ver galería
-            </button>
+  ${UI.button({
+    text: "Ver galería",
+    variant: "secondary",
+    onClick: "handleGalleryClick()"
+  })}
           </div>
         </div>
 
         <div class="status">
-          <div class="status-box">
-            <strong>0</strong>
-            <span>Recuerdos</span>
-          </div>
+  ${UI.statusBox({
+    value: "0",
+    label: "Recuerdos"
+  })}
 
-          <div class="status-box">
-            <strong>6</strong>
-            <span>Momentos</span>
-          </div>
-        </div>
+  ${UI.statusBox({
+    value: "6",
+    label: "Momentos"
+  })}
+</div>
 
         <div class="footer">
           ${AppState.app.name} · Versión Fundación · v${AppState.app.version}
@@ -78,18 +82,18 @@ function renderSections() {
   app.innerHTML = `
     <main class="app-shell white-shell">
       <section class="sections-header">
-        <button class="icon-back" onclick="goTo('home')">←</button>
+        ${UI.backButton("home")}
         <h1>Secciones</h1>
       </section>
 
       <section class="sections-grid">
-        ${sections.map(([name, icon], index) => `
-          <button class="section-tile tile-${index + 1}" onclick="selectSection('${name}')">
-            <span class="tile-overlay"></span>
-            <span class="tile-icon">${icon}</span>
-            <span class="tile-name">${name}</span>
-          </button>
-        `).join("")}
+        ${sections.map(([name, icon], index) =>
+  UI.sectionCard({
+    name,
+    icon,
+    index: index + 1
+  })
+).join("")}
       </section>
     </main>
   `;
