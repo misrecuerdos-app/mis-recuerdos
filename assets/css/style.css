@@ -463,3 +463,28 @@ background-position: center;
   color: var(--color-primary);
   font-weight: 600;
 }
+/* Cuadrícula de archivos */
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.upload-thumb {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: #ececec;
+}
+
+.upload-thumb-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #d9a8c5;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 32px;
+  font-weight: 300;
+}
