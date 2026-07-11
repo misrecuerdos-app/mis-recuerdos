@@ -81,6 +81,10 @@ function renderSections() {
         UI.sectionCard({ section })
         ).join("")}
       </section>
+
+      ${UI.bottomNav({
+  active: "sections"
+})}
     </main>
   `;
 }
