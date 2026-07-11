@@ -4,6 +4,7 @@ function renderApp() {
   const page = AppState.navigation.currentPage;
   if (page === "home") renderHome();
   if (page === "sections") renderSections();
+  if (page === "upload") renderUpload();
 }
 
 function renderHome() {
@@ -87,13 +88,49 @@ function renderSections() {
     </main>
   `;
 }
+function renderUpload() {
+  const selectedSection = AppState.upload.section;
 
+  app.innerHTML = `
+    <main class="app-shell white-shell">
+      ${UI.header({
+        title: "Subir archivos",
+        back: "sections"
+      })}
+
+      <section class="upload-page">
+        <div class="upload-placeholder">
+          <div class="upload-placeholder-icon">＋</div>
+
+          <h2>Selecciona fotos o videos</h2>
+
+          <p>
+            ${selectedSection
+              ? `Sección seleccionada: ${selectedSection.name}`
+              : "Primero selecciona una sección"}
+          </p>
+
+          ${UI.button({
+            text: "Seleccionar archivos",
+            variant: "primary",
+            onClick: ""
+          })}
+        </div>
+      </section>
+
+      ${UI.bottomNav({
+        active: "upload"
+      })}
+    </main>
+  `;
+}
 function selectSection(sectionId) {
   const selectedSection = AppState.event.sections.find(
     section => section.id === sectionId
   );
 
   AppState.upload.section = selectedSection;
+  goTo("upload");
 }
 
 renderApp();
