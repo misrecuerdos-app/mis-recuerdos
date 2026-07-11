@@ -102,6 +102,22 @@ ${UI.stepper({
 })}
       <section class="upload-page">
         <div class="upload-placeholder">
+        <div class="upload-grid">
+
+  <div class="upload-thumb"></div>
+  <div class="upload-thumb"></div>
+  <div class="upload-thumb"></div>
+  <div class="upload-thumb"></div>
+
+  <div class="upload-thumb"></div>
+  <div class="upload-thumb"></div>
+  <div class="upload-thumb"></div>
+
+  <div class="upload-thumb upload-thumb-add">
+    +
+  </div>
+
+</div>
           <p>
             ${selectedSection
               ? `Sección seleccionada: ${selectedSection.name}`
