@@ -176,4 +176,25 @@ const UI = {
       </div>
     `;
   },
+    galleryThumb({
+    image = "",
+    removable = false,
+    duration = ""
+  } = {}) {
+    return `
+      <div class="gallery-thumb">
+        ${image
+          ? `<img src="${image}" alt="Vista previa">`
+          : `<div class="gallery-thumb-placeholder"></div>`}
+
+        ${removable
+          ? `<button class="gallery-thumb-remove" aria-label="Eliminar archivo">×</button>`
+          : ""}
+
+        ${duration
+          ? `<span class="gallery-thumb-duration">${duration}</span>`
+          : ""}
+      </div>
+    `;
+  },
 };
