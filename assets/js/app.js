@@ -153,3 +153,4 @@ function handleFilesSelected(event) {
   renderApp();
 }
 
+renderApp();
