@@ -488,3 +488,48 @@ background-position: center;
   font-size: 32px;
   font-weight: 300;
 }
+/* Gallery Thumbnail */
+
+.gallery-thumb {
+  position: relative;
+  height: 76px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ececec;
+}
+
+.gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #ececec;
+}
+
+.gallery-thumb-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  cursor: pointer;
+}
+
+.gallery-thumb-duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  font-size: 11px;
+}
