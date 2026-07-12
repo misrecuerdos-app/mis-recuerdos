@@ -103,9 +103,9 @@ ${UI.stepper({
       <section class="upload-page">
         <div class="upload-placeholder">
         <div class="upload-grid">
-${previews.slice(0, 7).map(() => `
-  <div class="upload-thumb"></div>
-`).join("")}
+${previews.slice(0, 7).map(() =>
+  UI.galleryThumb()
+).join("")}
 
  <div class="upload-thumb upload-thumb-add">
     +
