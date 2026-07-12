@@ -90,7 +90,7 @@ function renderSections() {
 }
 function renderUpload() {
   const selectedSection = AppState.upload.section;
-
+  const previews = Array(8).fill(null);
   app.innerHTML = `
     <main class="app-shell white-shell">
       ${UI.header({
