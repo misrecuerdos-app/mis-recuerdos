@@ -219,4 +219,12 @@ function removeSelectedFile(index) {
   AppState.upload.files.splice(index, 1);
   renderApp();
 }
+function handleUploadAction() {
+  if (AppState.upload.files.length === 0) {
+    document.getElementById("uploadFilePicker").click();
+    return;
+  }
+
+  goTo("review");
+}
 renderApp();
