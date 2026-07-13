@@ -78,7 +78,7 @@ body {
   font-size: 44px;
   line-height: 1.02;
   letter-spacing: -1.2px;
-  font-weight: 900;
+  font-weight: 700;
   color: #ffffff;
 }
 
@@ -93,7 +93,7 @@ body {
 .home-title p {
   font-size: 18px;
   line-height: 1.4;
-  font-weight: 600;
+  font-weight: 500;
   color: #ffffff;
 }
 
@@ -118,7 +118,7 @@ body {
   border-radius: 18px;
   padding: 17px 18px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -181,7 +181,7 @@ body {
   text-align: center;
   font-size: 17px;
   color: #171018;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .icon-back {
@@ -204,10 +204,10 @@ body {
 
 .page-header h1 {
   text-align: center;
-  font-size: 30px;
-  line-height: 1.1;
+  font-size: 20px;
+  line-height: 1.2;
   color: var(--color-text);
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .page-header .icon-back {
@@ -261,7 +261,7 @@ body {
   z-index: 2;
   font-size: 15px;
   line-height: 1.15;
-  font-weight: 900;
+  font-weight: 600;
   text-shadow: 0 2px 6px rgba(0,0,0,0.55);
 }
 
@@ -416,10 +416,11 @@ background-position: center;
 }
 
 .upload-placeholder h2 {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.2;
   color: var(--color-text);
   margin-bottom: 8px;
+  font-weight: 600;
 }
 
 .upload-placeholder p {
