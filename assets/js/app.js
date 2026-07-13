@@ -120,6 +120,9 @@ ${previews.slice(0, 7).map((file, index) =>
 </button>
 
 </div>
+<p class="upload-counter">
+  ${previews.length} de 12 archivos seleccionados
+</p>
           <p>
             ${selectedSection
               ? `Sección seleccionada: ${selectedSection.name}`
