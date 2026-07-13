@@ -18,9 +18,20 @@ function renderHome() {
         <div class="home-content">
 
           <div class="home-title">
-            <div class="home-brand">${AppState.app.name}</div>
 
-            <h1>
+  <div class="home-brand-block">
+
+    <img
+      src="assets/images/logo-camera.png"
+      alt="Recuerdos"
+      class="home-brand-icon"
+    >
+
+    <div class="home-brand">${AppState.app.name}</div>
+
+  </div>
+
+  <h1>
               XV Años<br>
               Sofía Gutiérrez
             </h1>
