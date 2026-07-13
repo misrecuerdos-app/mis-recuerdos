@@ -35,7 +35,9 @@ body {
 .home-shell {
   min-height: 780px;
   background-size: cover;
-  background-position: center;
+  background-position: 62% center;
+  background-repeat: no-repeat;
+  background-color: #120b14;
   color: #ffffff;
 }
 
@@ -45,12 +47,19 @@ body {
   flex-direction: column;
   justify-content: space-between;
   background:
-    linear-gradient(
-      180deg,
-      rgba(10, 4, 16, 0.08) 0%,
-      rgba(10, 4, 16, 0.18) 32%,
-      rgba(10, 4, 16, 0.82) 100%
-    );
+  linear-gradient(
+    90deg,
+    rgba(8, 3, 12, 0.88) 0%,
+    rgba(8, 3, 12, 0.72) 42%,
+    rgba(8, 3, 12, 0.28) 70%,
+    rgba(8, 3, 12, 0.18) 100%
+  ),
+  linear-gradient(
+    180deg,
+    rgba(8, 3, 12, 0.10) 0%,
+    rgba(8, 3, 12, 0.16) 48%,
+    rgba(8, 3, 12, 0.76) 100%
+  );
 }
 
 .home-content {
