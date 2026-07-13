@@ -162,6 +162,7 @@ const mergedFiles = [
 AppState.upload.files = mergedFiles.slice(0, 12);
   console.log(AppState.upload.files);
   renderApp();
+  event.target.value = "";
 }
 function removeSelectedFile(index) {
   AppState.upload.files.splice(index, 1);
