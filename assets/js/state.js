@@ -79,10 +79,16 @@ sections: [
 
     upload: {
 
-        section: null,
+    section: null,
 
-        files: []
+    files: [],
 
-    }
+    status: "idle",
+
+    current: 0,
+
+    total: 0
+
+}
 
 };
