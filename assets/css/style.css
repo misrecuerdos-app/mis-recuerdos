@@ -383,7 +383,7 @@ background-position: center;
   border-radius: 50%;
   background: var(--color-primary);
   color: white;
-  transform: translateY(-6px);
+  transform: translateY(-4px);
   box-shadow: 0 8px 18px rgba(217, 79, 145, 0.35);
 }
 
