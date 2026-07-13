@@ -125,7 +125,42 @@ function renderUpload() {
 
     return;
   }
+  if (AppState.upload.status === "done") {
+    app.innerHTML = `
+      <main class="app-shell white-shell">
+        ${UI.header({
+          title: "Archivos enviados",
+          back: false
+        })}
 
+        ${UI.stepper({
+          current: 3
+        })}
+
+        <section class="upload-page">
+          <div class="upload-placeholder">
+            <h2>¡Gracias!</h2>
+
+            <p>
+              Tus archivos fueron enviados correctamente.
+            </p>
+
+            ${UI.button({
+              text: "Subir más archivos",
+              variant: "primary",
+              onClick: "resetUpload()"
+            })}
+          </div>
+        </section>
+
+        ${UI.bottomNav({
+          active: "upload"
+        })}
+      </main>
+    `;
+
+    return;
+  }
   app.innerHTML = `
     <main class="app-shell white-shell">
       ${UI.header({
