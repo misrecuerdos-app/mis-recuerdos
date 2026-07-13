@@ -269,41 +269,97 @@ async function handleUploadAction() {
 }
 async function uploadFiles() {
   AppState.upload.status = "uploading";
-AppState.upload.current = 0;
-AppState.upload.total = AppState.upload.files.length;
+  AppState.upload.current = 0;
+  AppState.upload.total = AppState.upload.files.length;
+  AppState.upload.progress = 0;
+  AppState.upload.error = null;
 
-renderApp();
-  for (const file of AppState.upload.files) {
-
-    const base64 = await new Promise(resolve => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        resolve(reader.result.split(",")[1]);
-      };
-
-      reader.readAsDataURL(file);
-    });
-
-    const response = await fetch(UPLOAD_ENDPOINT, {
-      method: "POST",
-      
-      body: JSON.stringify({
-        fileName: file.name,
-        mimeType: file.type,
-        base64: base64
-      })
-    });
-
-    const result = await response.json();
-    AppState.upload.current++;
-renderApp();
-    console.log(result);
-  }
-  AppState.upload.status = "done";
-  AppState.upload.files = [];
   renderApp();
+
+  try {
+    for (const file of AppState.upload.files) {
+      AppState.upload.currentFileName = file.name;
+      AppState.upload.progress = 0;
+      renderApp();
+
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          resolve(reader.result.split(",")[1]);
+        };
+
+        reader.onerror = () => {
+          reject(new Error(`No se pudo leer ${file.name}`));
+        };
+
+        reader.readAsDataURL(file);
+      });
+
+      const result = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.open("POST", UPLOAD_ENDPOINT);
+
+        xhr.upload.onprogress = event => {
+          if (!event.lengthComputable) return;
+
+          AppState.upload.progress = Math.round(
+            (event.loaded / event.total) * 100
+          );
+
+          renderApp();
+        };
+
+        xhr.onload = () => {
+          try {
+            const response = JSON.parse(xhr.responseText);
+
+            if (!response.success) {
+              reject(new Error(response.error || "Error al subir el archivo"));
+              return;
+            }
+
+            resolve(response);
+          } catch {
+            reject(new Error("Respuesta inválida del servidor"));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error(`Falló la subida de ${file.name}`));
+        };
+
+        xhr.send(
+          JSON.stringify({
+            fileName: file.name,
+            mimeType: file.type,
+            base64
+          })
+        );
+      });
+
+      console.log(result);
+
+      AppState.upload.progress = 100;
+      AppState.upload.current++;
+      renderApp();
+    }
+
+    AppState.upload.status = "done";
+    AppState.upload.currentFileName = "";
+    AppState.upload.files = [];
+    renderApp();
+
+  } catch (error) {
+    console.error(error);
+
+    AppState.upload.status = "error";
+    AppState.upload.error = error.message;
+    renderApp();
+  }
 }
+
   function resetUpload() {
 
   AppState.upload.section = null;
