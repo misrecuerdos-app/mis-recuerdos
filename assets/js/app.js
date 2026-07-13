@@ -191,7 +191,11 @@ async function handleUploadAction() {
   await uploadFiles();
 }
 async function uploadFiles() {
+  AppState.upload.status = "uploading";
+AppState.upload.current = 0;
+AppState.upload.total = AppState.upload.files.length;
 
+renderApp();
   for (const file of AppState.upload.files) {
 
     const base64 = await new Promise(resolve => {
@@ -215,7 +219,8 @@ async function uploadFiles() {
     });
 
     const result = await response.json();
-
+    AppState.upload.current++;
+renderApp();
     console.log(result);
   }
 
