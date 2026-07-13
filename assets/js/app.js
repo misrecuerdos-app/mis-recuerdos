@@ -103,9 +103,11 @@ ${UI.stepper({
       <section class="upload-page">
         <div class="upload-placeholder">
         <div class="upload-grid">
-${previews.slice(0, 7).map(file =>
+${previews.slice(0, 7).map((file, index) =>
   UI.galleryThumb({
-    image: URL.createObjectURL(file)
+    image: URL.createObjectURL(file),
+    removable: true,
+    onRemove: `removeSelectedFile(${index})`
   })
 ).join("")}
 
@@ -156,5 +158,8 @@ function handleFilesSelected(event) {
   console.log(AppState.upload.files);
   renderApp();
 }
-
+function removeSelectedFile(index) {
+  AppState.upload.files.splice(index, 1);
+  renderApp();
+}
 renderApp();
