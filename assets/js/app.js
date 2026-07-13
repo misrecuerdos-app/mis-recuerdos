@@ -5,7 +5,6 @@ function renderApp() {
   if (page === "home") renderHome();
   if (page === "sections") renderSections();
   if (page === "upload") renderUpload();
-  if (page === "review") renderReview();
 }
 
 function renderHome() {
@@ -149,51 +148,7 @@ ${previews.length < 12 ? `
     </main>
   `;
 }
-function renderReview() {
-  const selectedSection = AppState.upload.section;
-  const previews = AppState.upload.files;
 
-  app.innerHTML = `
-    <main class="app-shell white-shell">
-      ${UI.header({
-        title: "Revisar archivos",
-        back: "upload"
-      })}
-
-      ${UI.stepper({
-        current: 2
-      })}
-
-      <section class="upload-page">
-        <div class="upload-placeholder">
-
-          <div class="upload-grid">
-            ${previews.map(file =>
-              UI.galleryThumb({
-                image: URL.createObjectURL(file)
-              })
-            ).join("")}
-          </div>
-
-          <p class="upload-counter">
-            ${previews.length} de 12 archivos seleccionados
-          </p>
-
-          <p>
-            ${selectedSection
-              ? `Sección: ${selectedSection.name}`
-              : ""}
-          </p>
-
-        </div>
-      </section>
-
-      ${UI.bottomNav({
-        active: "upload"
-      })}
-    </main>
-  `;
-}
 function selectSection(sectionId) {
   const selectedSection = AppState.event.sections.find(
     section => section.id === sectionId
@@ -225,6 +180,7 @@ function handleUploadAction() {
     return;
   }
 
-  goTo("review");
+  alert("Aquí iniciaremos la subida a Google Drive.");
+}
 }
 renderApp();
