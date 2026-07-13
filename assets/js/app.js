@@ -301,6 +301,8 @@ renderApp();
     console.log(result);
   }
 
-  alert("Todos los archivos fueron enviados.");
+  AppState.upload.status = "done";
+AppState.upload.files = [];
+renderApp();
 }
 renderApp();
