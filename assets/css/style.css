@@ -392,6 +392,12 @@ background-position: center;
   height: 28px;
   stroke: white;
 }
+.bottom-nav-upload .bottom-nav-label {
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 2px;
+}
 /* Pantalla Subir archivos */
 
 .upload-page {
