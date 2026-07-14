@@ -239,6 +239,14 @@ function formatRelativeTime(dateString) {
 
 }
 
+function openViewer(fileId) {
+
+  alert(
+    "Visor próximamente.\n\nArchivo:\n" + fileId
+  );
+
+}
+
 function renderSections() {
   app.innerHTML = `
     <main class="app-shell white-shell">
