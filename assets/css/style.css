@@ -67,30 +67,29 @@ body {
 }
 
 .home-title {
-  margin-top: 235px;
-  margin-bottom: 28px;
+  margin-top: 170px;
+  margin-bottom: 24px;
 }
  
 .home-brand-block {
   position: absolute;
-  top: 92px;
-  left: 12px;
-  width: 320px;
+  top: 56px;
+  left: 16px;
+  width: 240px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   margin: 0;
 }
 .home-logo {
-  width: 260px;
+  width: 200px;
   height: auto;
   display: block;
 }
 .home-brand-icon {
-  width: 58px;
-  height: auto;
-  margin-left: 118px;
-  margin-bottom: 14px;
+  width: 44px;  
+  margin-left: 76px;
+  margin-bottom: 10px;
 }
 .home-event-title {
   margin: 0;
