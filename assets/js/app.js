@@ -100,8 +100,39 @@ function renderHome() {
   `;
 }
 
-function renderSections() {
+function renderLive() {
+  app.innerHTML = `
+    <main class="app-shell white-shell">
 
+      ${UI.header({
+        title: "Galería",
+        back: "home"
+      })}
+
+      <section class="live-page">
+
+        <div class="live-heading">
+          <h2>En vivo</h2>
+          <p>Últimos recuerdos compartidos</p>
+        </div>
+
+        <div id="liveContent" class="live-content">
+          Cargando recuerdos...
+        </div>
+
+      </section>
+
+      ${UI.bottomNav({
+        active: "home"
+      })}
+
+    </main>
+  `;
+
+  loadLiveItems();
+}
+
+function renderSections() {
   app.innerHTML = `
     <main class="app-shell white-shell">
       ${UI.header({
