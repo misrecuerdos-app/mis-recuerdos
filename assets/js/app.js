@@ -163,21 +163,29 @@ async function loadLiveItems() {
     }
 
     container.innerHTML = result.items
-      .map(item => `
-        <div class="live-item">
+  .map(item => `
+    <article class="live-card">
 
-          <div class="live-name">
-            ${item.originalFileName}
-          </div>
+      <img
+        class="live-thumbnail"
+        src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
+        alt=""
+        loading="lazy"
+      >
 
-          <div class="live-meta">
-            ${item.sectionId} ·
-            ${new Date(item.uploadedAt).toLocaleString()}
-          </div>
-
+      <div class="live-card-info">
+        <div class="live-section">
+          ${getSectionName(item.sectionId)}
         </div>
-      `)
-      .join("");
+
+        <div class="live-time">
+          ${formatRelativeTime(item.uploadedAt)}
+        </div>
+      </div>
+
+    </article>
+  `)
+  .join("");
 
   } catch (error) {
 
