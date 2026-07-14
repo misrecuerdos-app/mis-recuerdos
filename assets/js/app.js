@@ -63,7 +63,7 @@ function renderHome() {
             })}
 
             ${UI.button({
-              text: "Ver recuerdos",
+              text: "Ver galería",
               variant: "secondary",
               onClick: "handleGalleryClick()"
             })}
