@@ -138,7 +138,9 @@ function renderLive() {
       })}
     </main>
   `;
-  loadLiveItems();
+  loadGalleryItems(
+  `${UPLOAD_ENDPOINT}?action=live`
+);
 }
 function showGalleryMode(mode) {
   const buttons = document.querySelectorAll(
@@ -165,7 +167,9 @@ function showGalleryMode(mode) {
       </div>
     `;
 
-    loadLiveItems();
+    loadGalleryItems(
+  `${UPLOAD_ENDPOINT}?action=live`
+);
     return;
   }
 
@@ -199,7 +203,7 @@ function showGalleryMode(mode) {
   </div>
 `;
 }
-async function loadLiveItems() {
+async function loadGalleryItems(url) {
 
   const container = document.getElementById("liveContent");
 
@@ -207,9 +211,7 @@ async function loadLiveItems() {
 
   try {
 
-    const response = await fetch(
-      `${UPLOAD_ENDPOINT}?action=live`
-    );
+    const response = await fetch(url);
 
     const result = await response.json();
 
