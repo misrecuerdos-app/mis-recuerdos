@@ -750,3 +750,26 @@ background-position: center;
   object-fit: contain;
   border-radius: 12px;
 }
+.media-viewer-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 64px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 44px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.media-viewer-prev {
+  left: 18px;
+}
+
+.media-viewer-next {
+  right: 18px;
+}
