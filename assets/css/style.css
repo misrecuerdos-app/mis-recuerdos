@@ -95,7 +95,7 @@ body {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 
 .home-event-type {
@@ -108,6 +108,7 @@ body {
 
 .home-event-name {
   margin-top: 10px;
+  transform: translateY(-10px);
   font-family: "Great Vibes", cursive;
   font-size: 58px;
   font-weight: 400;
