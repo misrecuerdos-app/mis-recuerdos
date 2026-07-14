@@ -83,10 +83,10 @@ function renderHome() {
             })}
 
             ${UI.button({
-              text: "Ver galería",
-              variant: "secondary",
-              onClick: "handleGalleryClick()"
-            })}
+  text: "Ver galería",
+  variant: "secondary",
+  onClick: "goTo('live')"
+})}
           </div>
 
         </div>
