@@ -164,7 +164,10 @@ async function loadLiveItems() {
 
     container.innerHTML = result.items
   .map(item => `
-    <article class="live-card">
+    <article
+  class="live-card"
+  onclick="openViewer('${item.fileId}')"
+>
 
       <img
         class="live-thumbnail"
