@@ -35,11 +35,17 @@ function renderHome() {
 
 </div>
 
-  <h1 class="home-event-title">
-  XV Años<br>
-  Sofía Gutiérrez
-</h1>
+ <h1 class="home-event-title">
 
+  <span class="home-event-type">
+    XV Años
+  </span>
+
+  <span class="home-event-name">
+    Sofía Gutiérrez
+  </span>
+
+</h1>
             <div class="home-title-line"></div>
 
             <p>
