@@ -132,6 +132,67 @@ function renderLive() {
   loadLiveItems();
 }
 
+async function loadLiveItems() {
+
+  const container = document.getElementById("liveContent");
+
+  container.textContent = "Cargando recuerdos...";
+
+  try {
+
+    const response = await fetch(
+      `${UPLOAD_ENDPOINT}?action=live`
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error("No fue posible obtener la galería.");
+    }
+
+    if (!result.items.length) {
+
+      container.innerHTML = `
+        <div class="live-empty">
+          Aún no hay recuerdos compartidos.
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = result.items
+      .map(item => `
+        <div class="live-item">
+
+          <div class="live-name">
+            ${item.originalFileName}
+          </div>
+
+          <div class="live-meta">
+            ${item.sectionId} ·
+            ${new Date(item.uploadedAt).toLocaleString()}
+          </div>
+
+        </div>
+      `)
+      .join("");
+
+  } catch (error) {
+
+    container.innerHTML = `
+      <div class="live-error">
+        Error al cargar la galería.
+      </div>
+    `;
+
+    console.error(error);
+
+  }
+
+}
+
 function renderSections() {
   app.innerHTML = `
     <main class="app-shell white-shell">
