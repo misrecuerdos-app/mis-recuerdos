@@ -240,11 +240,35 @@ function formatRelativeTime(dateString) {
 }
 
 function openViewer(fileId) {
+  const viewer = document.createElement("div");
 
-  alert(
-    "Visor próximamente.\n\nArchivo:\n" + fileId
-  );
+  viewer.className = "media-viewer";
 
+  viewer.innerHTML = `
+    <button
+      class="media-viewer-close"
+      onclick="closeViewer()"
+      aria-label="Cerrar visor"
+    >
+      ×
+    </button>
+
+    <img
+      class="media-viewer-image"
+      src="https://drive.google.com/thumbnail?id=${fileId}&sz=w1600"
+      alt=""
+    >
+  `;
+
+  document.body.appendChild(viewer);
+}
+
+function closeViewer() {
+  const viewer = document.querySelector(".media-viewer");
+
+  if (viewer) {
+    viewer.remove();
+  }
 }
 
 function renderSections() {
