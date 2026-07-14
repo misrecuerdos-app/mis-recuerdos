@@ -35,7 +35,7 @@ body {
 .home-shell {
   min-height: 780px;
   background-size: cover;
-  background-position: 35% 18%;
+  background-position: 58% 18%;
   background-repeat: no-repeat;
   background-color: #120b14;
   color: #ffffff;
@@ -73,8 +73,8 @@ body {
  
 .home-brand-block {
   position: absolute;
-  top: 145px;
-  left: 16px;
+  top: 155px;
+  left: 8px;
   width: 240px;
   display: flex;
   flex-direction: column;
@@ -82,13 +82,13 @@ body {
   margin: 0;
 }
 .home-logo {
-  width: 200px;
+  width: 182px;
   height: auto;
   display: block;
 }
 .home-brand-icon {
   width: 44px;  
-  margin-left: 76px;
+  margin-left: 68px;
   margin-bottom: 10px;
 }
 .home-event-title {
