@@ -112,10 +112,36 @@ function renderLive() {
 
       <section class="live-page">
 
-        <div class="live-heading">
-          <h2>En vivo</h2>
-          <p>Últimos recuerdos compartidos</p>
-        </div>
+        <div class="gallery-switch">
+
+  <button
+    class="gallery-switch-button active"
+    onclick="showGalleryMode('live')"
+  >
+    ✨ En vivo
+  </button>
+
+  <button
+    class="gallery-switch-button"
+    onclick="showGalleryMode('sections')"
+  >
+    📂 Secciones
+  </button>
+
+</div>
+
+<div id="galleryBody">
+
+  <div class="live-heading">
+    <h2>En vivo</h2>
+    <p>Últimos recuerdos compartidos</p>
+  </div>
+
+  <div id="liveContent" class="live-content">
+    Cargando recuerdos...
+  </div>
+
+</div>
 
         <div id="liveContent" class="live-content">
           Cargando recuerdos...
