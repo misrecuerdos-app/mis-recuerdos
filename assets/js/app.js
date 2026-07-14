@@ -352,10 +352,12 @@ async function uploadFiles() {
       const response = await fetch(UPLOAD_ENDPOINT, {
         method: "POST",
         body: JSON.stringify({
-          fileName: file.name,
-          mimeType: file.type,
-          base64
-        })
+  fileName: file.name,
+  mimeType: file.type,
+  base64,
+  deviceToken: AppState.device.token,
+  sectionId: AppState.upload.section?.id || "general"
+})
       });
 
       const result = await response.json();
