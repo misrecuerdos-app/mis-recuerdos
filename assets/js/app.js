@@ -361,12 +361,12 @@ container.innerHTML = items
         ${AppState.navigation.currentPage === "mine"
   ? `
     <button
-      class="mine-delete-button"
-      onclick="event.stopPropagation();confirmDelete('${item.fileId}')"
-      aria-label="Eliminar"
-    >
-      🗑️
-    </button>
+  class="mine-delete-button"
+  onclick="event.stopPropagation();confirmDelete('${item.fileId}')"
+  aria-label="Eliminar archivo"
+>
+  ×
+</button>
   `
   : ""
 }
