@@ -359,7 +359,18 @@ container.innerHTML = items
     >
 
       <div class="live-media">
-
+        ${AppState.navigation.currentPage === "mine"
+  ? `
+    <button
+      class="mine-delete-button"
+      onclick="event.stopPropagation();confirmDelete('${item.fileId}')"
+      aria-label="Eliminar"
+    >
+      🗑️
+    </button>
+  `
+  : ""
+}
         <img
           class="live-thumbnail"
           src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
