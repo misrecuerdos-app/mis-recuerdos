@@ -1002,3 +1002,54 @@ background-position: center;
   justify-content: center;
   cursor: pointer;
 }
+/* Mis Subidas agrupadas por sección */
+
+#mineContent {
+  display: grid;
+  gap: 26px;
+}
+
+.mine-section-group {
+  display: grid;
+  gap: 10px;
+}
+
+.mine-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.mine-section-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mine-thumbnail {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #302b33;
+  border-radius: 12px;
+  background: #19171c;
+  cursor: pointer;
+}
+
+.mine-thumbnail img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.mine-thumbnail .live-play-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
