@@ -43,13 +43,14 @@ sectionCard({ section }) {
       class="section-tile"
       onclick="selectSection('${section.id}')"
       style="background-image:
-        linear-gradient(
-          180deg,
-          rgba(0,0,0,0.08),
-          rgba(0,0,0,0.78)
-        ),
-        url('assets/images/sections/${section.id}.png')
-    >
+  linear-gradient(
+    180deg,
+    rgba(0,0,0,0.08),
+    rgba(0,0,0,0.78)
+  ),
+  url('assets/images/sections/${section.id}.png');
+"
+>
       <img
         class="tile-icon"
         src="assets/images/sections/${section.id}.svg"
