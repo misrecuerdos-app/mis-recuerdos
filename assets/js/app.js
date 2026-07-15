@@ -103,7 +103,7 @@ function renderHome() {
 
 function renderLive() {
   app.innerHTML = `
-    <main class="app-shell white-shell">
+    <main class="app-shell gallery-shell">
       ${UI.header({
         title: "Galería",
         back: "home"
