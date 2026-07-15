@@ -83,21 +83,9 @@ function renderHome() {
               text: "Subir fotos o videos",
               variant: "primary",
               onClick: "goTo('sections')"
-            })}
-
-            ${UI.button({
-  text: "Ver galería",
-  variant: "secondary",
-  onClick: "goTo('live')"
-})}
+            })}            
           </div>
-
         </div>
-
-        ${UI.bottomNav({
-          active: "home"
-        })}
-
       </section>
     </main>
   `;
@@ -127,7 +115,7 @@ function renderLive() {
 </div>
 <div id="galleryBody">
   <div class="live-heading">
-    <h2>En vivo</h2>
+    <h2>Recientes</h2>
     <p>Últimos recuerdos compartidos</p>
   </div>
   <div id="liveContent" class="live-content">
@@ -136,7 +124,7 @@ function renderLive() {
 </div>
       </section>
       ${UI.bottomNav({
-        active: "home"
+        active: "live"
       })}
     </main>
   `;
@@ -197,7 +185,7 @@ function showGalleryMode(mode) {
 
     galleryBody.innerHTML = `
       <div class="live-heading">
-        <h2>En vivo</h2>
+        <h2>Recientes</h2>
         <p>Últimos recuerdos compartidos</p>
       </div>
 
@@ -314,13 +302,14 @@ function openGallerySection(sectionId) {
     </div>
   `;
 
-  loadGalleryItems(
-    `${UPLOAD_ENDPOINT}?action=section&sectionId=${sectionId}`
+    loadGalleryItems(
+    `${UPLOAD_ENDPOINT}?action=section&sectionId=${sectionId}`,
+    false
   );
 
 }
 
-async function loadGalleryItems(url) {
+async function loadGalleryItems(url, showInfo = true) {
 
   const container = document.getElementById("liveContent");
 
@@ -358,18 +347,7 @@ container.innerHTML = items
     >
 
       <div class="live-media">
-        ${AppState.navigation.currentPage === "mine"
-  ? `
-    <button
-  class="mine-delete-button"
-  onclick="event.stopPropagation();confirmDelete('${item.fileId}')"
-  aria-label="Eliminar archivo"
->
-  🗑️
-</button>
-  `
-  : ""
-}
+
         <img
           class="live-thumbnail"
           src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
@@ -384,18 +362,17 @@ container.innerHTML = items
 
       </div>
 
-      <div class="live-card-info">
+            ${showInfo ? `
+        <div class="live-card-info">
+          <div class="live-section">
+            ${getSectionName(item.sectionId)}
+          </div>
 
-        <div class="live-section">
-          ${getSectionName(item.sectionId)}
+          <div class="live-time">
+            ${formatRelativeTime(item.uploadedAt)}
+          </div>
         </div>
-
-        <div class="live-time">
-          ${formatRelativeTime(item.uploadedAt)}
-        </div>
-
-      </div>
-
+      ` : ""}
     </article>
   `)
   .join("");
@@ -526,13 +503,6 @@ function closeViewer() {
   }
 
   currentViewerIndex = -1;
-}
-function closeViewer() {
-  const viewer = document.querySelector(".media-viewer");
-
-  if (viewer) {
-    viewer.remove();
-  }
 }
 
 function renderSections() {
