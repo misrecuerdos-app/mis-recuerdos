@@ -365,7 +365,7 @@ container.innerHTML = items
   onclick="event.stopPropagation();confirmDelete('${item.fileId}')"
   aria-label="Eliminar archivo"
 >
-  ×
+  🗑️
 </button>
   `
   : ""
