@@ -86,7 +86,7 @@ const UI = {
           <path d="M5.5 10.5V20h13v-9.5"/>
         </svg>
       `,
-      sections: `
+      live: `
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <rect x="4" y="4" width="6" height="6" rx="1"/>
           <rect x="14" y="4" width="6" height="6" rx="1"/>
@@ -127,7 +127,7 @@ upload: `
 
     const items = [
       { id: "home", label: "Inicio" },
-      { id: "sections", label: "Secciones" },
+      { id: "live", label: "Galería" },
       { id: "upload", label: "" },
       { id: "mine", label: "Mis Subidas" },
       { id: "info", label: "Info" }
