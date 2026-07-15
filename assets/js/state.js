@@ -28,7 +28,7 @@ sections: [
   },
   {
     id: "misa",
-    name: "Misa de Agradecimiento",
+    name: "Misa",
     icon: "⛪",
     image: "assets/images/sections/misa.jpg"
   },
