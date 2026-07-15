@@ -48,7 +48,7 @@ sectionCard({ section }) {
           rgba(0,0,0,0.08),
           rgba(0,0,0,0.78)
         ),
-        url('${section.image}')"
+        url('assets/images/sections/${section.id}.png')
     >
       <img
         class="tile-icon"
