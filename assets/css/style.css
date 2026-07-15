@@ -287,7 +287,10 @@ body {
   bottom: 38px;
   z-index: 2;
   font-size: 22px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  filter:
+  brightness(0)
+  invert(1)
+  drop-shadow(0 2px 4px rgba(0,0,0,0.45));
 }
 
 .tile-name {
