@@ -1064,3 +1064,12 @@ background-position: center;
   height:22px;
   object-fit:contain;
 }
+.sections-intro {
+  padding: 0 18px 16px;
+}
+
+.sections-intro p {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #7d7386;
+}
