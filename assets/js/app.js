@@ -144,6 +144,43 @@ function renderLive() {
   `${UPLOAD_ENDPOINT}?action=live`
 );
 }
+
+function renderMine() {
+
+  app.innerHTML = `
+    <main class="app-shell gallery-shell">
+
+      ${UI.header({
+        title: "Mis Subidas",
+        back: "home"
+      })}
+
+      <section class="live-page">
+
+        <div class="live-heading">
+          <h2>Mis recuerdos</h2>
+          <p>Solo tú puedes ver y administrar estos archivos.</p>
+        </div>
+
+        <div id="liveContent" class="live-content">
+          Cargando recuerdos...
+        </div>
+
+      </section>
+
+      ${UI.bottomNav({
+        active: "mine"
+      })}
+
+    </main>
+  `;
+
+  loadGalleryItems(
+    `${UPLOAD_ENDPOINT}?action=mine&deviceToken=${encodeURIComponent(AppState.device.token)}`
+  );
+
+}
+
 function showGalleryMode(mode) {
   const buttons = document.querySelectorAll(
     ".gallery-switch-button"
