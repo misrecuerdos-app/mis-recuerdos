@@ -48,7 +48,7 @@ sectionCard({ section }) {
     rgba(0,0,0,0.08),
     rgba(0,0,0,0.78)
   ),
-  url('assets/images/sections/${section.id}.png');
+  url('assets/images/sections/thumbs/${section.id}.webp');
 "
 >
       <img
