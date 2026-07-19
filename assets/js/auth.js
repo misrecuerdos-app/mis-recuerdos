@@ -15,9 +15,6 @@ const Auth = {
   });
 
   console.log("Google Identity listo");
-},
-
-  console.log("Google Identity listo");
 
 },
 
