@@ -70,6 +70,16 @@ handleCredentialResponse(response) {
     picture: payload.picture
   };
 
+  localStorage.setItem(
+  "mis-recuerdos-user",
+  JSON.stringify(AppState.security.user)
+);
+
+localStorage.setItem(
+  "mis-recuerdos-login",
+  "true"
+);
+  
   console.log(AppState.security.user);
 
   document.getElementById("google-login")?.remove();
