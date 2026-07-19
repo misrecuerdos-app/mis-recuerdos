@@ -45,7 +45,7 @@ function renderHome() {
  <div class="home-brand-block">
 
   <img
-    src="assets/images/logos/logo-mis-recuerdos.png"
+    src="assets/images/logos/logo-mis-recuerdos-light.png"
     alt="Recuerdos"
     class="home-logo"
   >
