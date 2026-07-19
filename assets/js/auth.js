@@ -11,7 +11,7 @@ const Auth = {
 
     AppState.security.user = JSON.parse(savedUser);
     AppState.security.isLoggedIn = true;
-
+    google.accounts.id.disableAutoSelect();
     console.log("Sesión restaurada");
 
     return;
