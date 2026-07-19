@@ -12,6 +12,43 @@ const Auth = {
   console.log("Google Identity listo");
 
 },
+
+showLogin() {
+
+  let container = document.getElementById("google-login");
+
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "google-login";
+
+    Object.assign(container.style, {
+      position: "fixed",
+      inset: "0",
+      background: "rgba(0,0,0,0.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: "9999"
+    });
+
+    const button = document.createElement("div");
+    button.id = "google-login-button";
+
+    container.appendChild(button);
+    document.body.appendChild(container);
+  }
+
+  google.accounts.id.renderButton(
+    document.getElementById("google-login-button"),
+    {
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "pill"
+    }
+  );
+},
+  
 handleCredentialResponse(response) {
   console.log(response);
 }
