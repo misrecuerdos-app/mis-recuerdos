@@ -72,8 +72,7 @@ showLogin() {
 
 logout() {
 
-  localStorage.removeItem("mis-recuerdos-user");
-  localStorage.removeItem("mis-recuerdos-login");
+  localStorage.removeItem("mis-recuerdos-session");
 
   AppState.security.isLoggedIn = false;
   AppState.security.user = null;
