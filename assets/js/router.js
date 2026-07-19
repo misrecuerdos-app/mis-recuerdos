@@ -1,7 +1,12 @@
 function requirePermission(page) {
 
-  if (page === "sections") {
-    alert("Aquí pediremos iniciar sesión con Google.");
+  const protectedPages = ["sections"];
+
+  if (
+    protectedPages.includes(page) &&
+    !AppState.security.isLoggedIn
+  ) {
+    alert("Debes iniciar sesión con Google para continuar.");
     return false;
   }
 
