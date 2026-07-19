@@ -45,12 +45,6 @@ function renderHome() {
  <div class="home-brand-block">
 
   <img
-    src="assets/images/logo-camera.png"
-    alt=""
-    class="home-brand-icon"
-  >
-
-  <img
     src="assets/images/logos/logo-mis-recuerdos.png"
     alt="Recuerdos"
     class="home-logo"
