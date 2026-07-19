@@ -9,13 +9,10 @@ const AppState = {
     supportEmail: "misrecuerdos.app@gmail.com"
 },
     security: {
-
+    isLoggedIn: false,
     user: null,
-
     role: "guest",
-
     permissions: []
-
 },
     event: {
 
