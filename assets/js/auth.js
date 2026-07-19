@@ -4,10 +4,18 @@ const Auth = {
 
   initialize() {
 
+  if (!window.google?.accounts?.id) {
+    setTimeout(() => this.initialize(), 200);
+    return;
+  }
+
   google.accounts.id.initialize({
     client_id: this.clientId,
     callback: this.handleCredentialResponse.bind(this)
   });
+
+  console.log("Google Identity listo");
+},
 
   console.log("Google Identity listo");
 
