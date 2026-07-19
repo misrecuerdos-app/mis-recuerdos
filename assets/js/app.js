@@ -51,7 +51,7 @@ function renderHome() {
   >
 
   <img
-    src="assets/images/logo-recuerdos-word.png"
+    src="assets/images/logos/logo-mis-recuerdos.png"
     alt="Recuerdos"
     class="home-logo"
   >
