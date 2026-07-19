@@ -99,13 +99,11 @@ handleCredentialResponse(response) {
   };
 
   localStorage.setItem(
-  "mis-recuerdos-user",
-  JSON.stringify(AppState.security.user)
-);
-
-localStorage.setItem(
-  "mis-recuerdos-login",
-  "true"
+  "mis-recuerdos-session",
+  JSON.stringify({
+    isLoggedIn: true,
+    user: AppState.security.user
+  })
 );
   
   console.log(AppState.security.user);
