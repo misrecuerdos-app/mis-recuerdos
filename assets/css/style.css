@@ -73,8 +73,8 @@ body {
  
 .home-brand-block {
   position: absolute;
-  top: 155px;
-  left: 8px;
+  top: 60px;
+  left: 20px;
   width: 240px;
   display: flex;
   flex-direction: column;
