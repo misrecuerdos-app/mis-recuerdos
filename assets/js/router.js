@@ -6,7 +6,7 @@ function requirePermission(page) {
     protectedPages.includes(page) &&
     !AppState.security.isLoggedIn
   ) {
-    alert("Debes iniciar sesión con Google para continuar.");
+    Auth.showLogin();
     return false;
   }
 
