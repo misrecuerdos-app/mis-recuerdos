@@ -1,12 +1,13 @@
 const AppState = {
 
     app: {
-
-        name: "Recuerdos",
-
-        version: "0.2.0"
-
-    },
+    name: "Mis Recuerdos",
+    shortName: "Recuerdos",
+    version: "1.0.0",
+    author: "Mis Recuerdos",
+    website: "",
+    supportEmail: "misrecuerdos.app@gmail.com"
+},
 
     event: {
 
