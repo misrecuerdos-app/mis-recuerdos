@@ -27,7 +27,7 @@ const AppState = {
         "Comparte los momentos que harán inolvidable este día.",
 
        heroImage:
-       "assets/images/sofi-home.png",
+"assets/images/hero/sofi-home.webp",
 sections: [
   {
     id: "preparativos",
