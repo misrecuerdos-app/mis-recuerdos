@@ -4,18 +4,21 @@ const Auth = {
 
   initialize() {
 
-  const savedUser = localStorage.getItem("mis-recuerdos-user");
-  const savedLogin = localStorage.getItem("mis-recuerdos-login");
+  const session = localStorage.getItem("mis-recuerdos-session");
 
-  if (savedUser && savedLogin === "true") {
+if (session) {
 
-    AppState.security.user = JSON.parse(savedUser);
-    AppState.security.isLoggedIn = true;
-    google.accounts.id.disableAutoSelect();
-    console.log("Sesión restaurada");
+  const savedSession = JSON.parse(session);
 
-    return;
-  }
+  AppState.security.user = savedSession.user;
+  AppState.security.isLoggedIn = savedSession.isLoggedIn;
+
+  google.accounts.id.disableAutoSelect();
+
+  console.log("Sesión restaurada");
+
+  return;
+}
 
   if (!window.google?.accounts?.id) {
     setTimeout(() => this.initialize(), 200);
