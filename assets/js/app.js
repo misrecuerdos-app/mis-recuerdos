@@ -87,20 +87,7 @@ function renderHome() {
           </div>
         </div>
       </section>
-      <button
-  onclick="Auth.logout()"
-  style="
-    position:fixed;
-    top:20px;
-    right:20px;
-    z-index:9999;
-    padding:8px 14px;
-    border:none;
-    border-radius:20px;
-    cursor:pointer;
-  ">
-  Cerrar sesión
-</button>
+      
     </main>
   `;
 }
