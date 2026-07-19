@@ -20,6 +20,7 @@ function getDeviceToken() {
   AppState.device.token = token;
 
 }
+Auth.initialize();
 function renderApp() {
   const page = AppState.navigation.currentPage;
 
