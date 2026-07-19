@@ -8,7 +8,15 @@ const AppState = {
     website: "",
     supportEmail: "misrecuerdos.app@gmail.com"
 },
+    security: {
 
+    user: null,
+
+    role: "guest",
+
+    permissions: []
+
+},
     event: {
 
         name: "XV Años Sofía",
