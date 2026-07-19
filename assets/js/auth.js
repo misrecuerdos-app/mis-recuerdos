@@ -31,14 +31,6 @@ const Auth = {
 
 },
 
-  google.accounts.id.initialize({
-    client_id: this.clientId,
-    callback: this.handleCredentialResponse.bind(this)
-  });
-
-  console.log("Google Identity listo");
-},
-
 showLogin() {
 
   let container = document.getElementById("google-login");
