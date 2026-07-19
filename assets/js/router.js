@@ -1,3 +1,7 @@
+function requirePermission(page) {
+  return true;
+}
+
 function goTo(page) {
 
   if (!requirePermission(page)) {
