@@ -66,6 +66,20 @@ showLogin() {
     }
   );
 },
+
+logout() {
+
+  localStorage.removeItem("mis-recuerdos-user");
+  localStorage.removeItem("mis-recuerdos-login");
+
+  AppState.security.isLoggedIn = false;
+  AppState.security.user = null;
+
+  google.accounts.id.disableAutoSelect();
+
+  goTo("home");
+
+},
   
 handleCredentialResponse(response) {
 
