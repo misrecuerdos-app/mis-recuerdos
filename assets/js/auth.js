@@ -54,6 +54,27 @@ showLogin() {
 },
   
 handleCredentialResponse(response) {
-  console.log(response);
-}
+
+  const token = response.credential;
+
+  const payload = JSON.parse(
+    atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+  );
+
+  AppState.security.isLoggedIn = true;
+
+  AppState.security.user = {
+    id: payload.sub,
+    name: payload.name,
+    email: payload.email,
+    picture: payload.picture
+  };
+
+  console.log(AppState.security.user);
+
+  document.getElementById("google-login")?.remove();
+
+  goTo("sections");
+
+},
 };
