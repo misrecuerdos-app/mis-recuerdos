@@ -4,10 +4,32 @@ const Auth = {
 
   initialize() {
 
+  const savedUser = localStorage.getItem("mis-recuerdos-user");
+  const savedLogin = localStorage.getItem("mis-recuerdos-login");
+
+  if (savedUser && savedLogin === "true") {
+
+    AppState.security.user = JSON.parse(savedUser);
+    AppState.security.isLoggedIn = true;
+
+    console.log("Sesión restaurada");
+
+    return;
+  }
+
   if (!window.google?.accounts?.id) {
     setTimeout(() => this.initialize(), 200);
     return;
   }
+
+  google.accounts.id.initialize({
+    client_id: this.clientId,
+    callback: this.handleCredentialResponse.bind(this)
+  });
+
+  console.log("Google Identity listo");
+
+},
 
   google.accounts.id.initialize({
     client_id: this.clientId,
