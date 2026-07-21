@@ -13,7 +13,7 @@ if (session) {
   AppState.security.user = savedSession.user;
   AppState.security.isLoggedIn = savedSession.isLoggedIn;
 
-  google.accounts.id.disableAutoSelect();
+  window.google?.accounts?.id?.disableAutoSelect();
 
   console.log("Sesión restaurada");
 
