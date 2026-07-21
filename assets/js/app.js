@@ -1,5 +1,5 @@
 const app = document.getElementById("app");
-const UPLOAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbyK_Ki7Vmqmr-7Dzi0ui-8KbmKn5_yQz8zYq_A10qR4fNpHh8Gl-AvF5Cq8m7cMvMCc4Q/exec";
+const UPLOAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbxotpFCmjKY0IjyT79PjLxkYdWxa3uDFYiCoNtPq1Sbtq7WIuMWcx1R-9ZyFasZvgWW/exec";
 let liveItems = [];
 let currentViewerIndex = -1;
 function getDeviceToken() {
