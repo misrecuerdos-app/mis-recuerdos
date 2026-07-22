@@ -919,8 +919,23 @@ async function uploadFileInChunks(file) {
 
   const result = await response.json();
 
-console.log(result);
+const chunkSize = 5 * 1024 * 1024;
 
-throw new Error("STOP");
+const firstChunk = file.slice(0, chunkSize);
+
+const base64 = await new Promise((resolve, reject) => {
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    resolve(reader.result.split(",")[1]);
+  };
+
+  reader.onerror = reject;
+
+  reader.readAsDataURL(firstChunk);
+});
+
+console.log(result);
+console.log(base64.length);
 }
 renderApp();
