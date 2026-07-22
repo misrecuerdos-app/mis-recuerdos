@@ -890,7 +890,11 @@ async function uploadFiles() {
   goTo("sections");
 }
 async function uploadFile(file, base64) {
+const CHUNK_SIZE = 5 * 1024 * 1024;
 
+if (file.size > CHUNK_SIZE) {
+  return await uploadFileInChunks(file);
+}
   return await fetch(UPLOAD_ENDPOINT, {
     method: "POST",
     body: JSON.stringify({
