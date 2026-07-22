@@ -894,16 +894,18 @@ const CHUNK_SIZE = 5 * 1024 * 1024;
 if (file.size > CHUNK_SIZE) {
   return await uploadFileInChunks(file);
 }
-  return await fetch(UPLOAD_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify({
-      fileName: file.name,
-      mimeType: file.type,
-      base64,
-      deviceToken: AppState.device.token,
-      sectionId: AppState.upload.section?.id || "general"
-    })
-  });
+  const response = await fetch(UPLOAD_ENDPOINT, {
+  method: "POST",
+  body: JSON.stringify({
+    fileName: file.name,
+    mimeType: file.type,
+    base64,
+    deviceToken: AppState.device.token,
+    sectionId: AppState.upload.section?.id || "general"
+  })
+});
+
+return await response.json();
 
 }
 getDeviceToken();
