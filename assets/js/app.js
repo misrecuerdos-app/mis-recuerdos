@@ -913,12 +913,16 @@ async function uploadFileInChunks(file) {
   const response = await fetch(UPLOAD_ENDPOINT, {
     method: "POST",
     body: JSON.stringify({
-      action: "start"
+      action: "start",
+      fileName: file.name,
+      mimeType: file.type,
     })
   });
 
   const result = await response.json();
-
+console.log("Resumable start:", result);
+throw new Error("STOP RESUMABLE");
+  
 const chunkSize = 5 * 1024 * 1024;
 
 const totalChunks = Math.ceil(file.size / chunkSize);
