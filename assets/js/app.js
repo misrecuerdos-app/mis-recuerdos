@@ -851,8 +851,7 @@ async function uploadFiles() {
         reader.readAsDataURL(file);
       });
 
-      const response = await uploadFile(file, base64);
-      const result = await response.json();
+      const result = await uploadFile(file, base64);
 
       if (!result.success) {
         throw new Error(result.error || "Error al subir el archivo");
