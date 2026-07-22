@@ -850,17 +850,7 @@ async function uploadFiles() {
         reader.readAsDataURL(file);
       });
 
-      const response = await fetch(UPLOAD_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({
-  fileName: file.name,
-  mimeType: file.type,
-  base64,
-  deviceToken: AppState.device.token,
-  sectionId: AppState.upload.section?.id || "general"
-})
-      });
-
+      const response = await uploadFile(file, base64);
       const result = await response.json();
 
       if (!result.success) {
@@ -899,6 +889,19 @@ async function uploadFiles() {
 
   goTo("sections");
 }
+async function uploadFile(file, base64) {
 
+  return await fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      fileName: file.name,
+      mimeType: file.type,
+      base64,
+      deviceToken: AppState.device.token,
+      sectionId: AppState.upload.section?.id || "general"
+    })
+  });
+
+}
 getDeviceToken();
 renderApp();
