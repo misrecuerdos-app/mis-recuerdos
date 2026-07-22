@@ -15,7 +15,6 @@ function getDeviceToken() {
       "recuerdos-device-token",
       token
     );
-
   }
 
   AppState.device.token = token;
