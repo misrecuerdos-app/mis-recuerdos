@@ -963,12 +963,19 @@ for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
   );
 }
 
-return new Response(JSON.stringify({
-  success: true
-}), {
-  headers: {
-    "Content-Type": "application/json"
-  }
+const finishResponse = await fetch(UPLOAD_ENDPOINT, {
+  method: "POST",
+  body: JSON.stringify({
+    action: "finish",
+    uploadId: result.uploadId,
+    fileName: file.name,
+    mimeType: file.type,
+    deviceToken: AppState.device.token,
+    sectionId: AppState.upload.section?.id || "general",
+    totalChunks
+  })
 });
+
+return finishResponse;
 }
 renderApp();
