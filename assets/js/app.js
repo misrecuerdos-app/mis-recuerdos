@@ -928,7 +928,7 @@ async function uploadFileInChunks(file) {
 const chunkSize = 5 * 1024 * 1024;
 
 const totalChunks = Math.ceil(file.size / chunkSize);
-const firstChunk = file.slice(0, CHUNK_SIZE);
+const firstChunk = file.slice(0, chunkSize);
 
 const uploadResponse = await fetch(result.uploadUrl, {
   method: "PUT",
