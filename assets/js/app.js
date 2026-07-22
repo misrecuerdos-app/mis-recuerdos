@@ -937,5 +937,12 @@ const base64 = await new Promise((resolve, reject) => {
 
 console.log(result);
 console.log(base64.length);
+return new Response(JSON.stringify({
+  success: true
+}), {
+  headers: {
+    "Content-Type": "application/json"
+  }
+});  
 }
 renderApp();
