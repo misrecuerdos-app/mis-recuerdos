@@ -920,9 +920,11 @@ async function uploadFileInChunks(file) {
   });
 
   const result = await response.json();
-console.log("Resumable start:", result);
-throw new Error("STOP RESUMABLE");
-  
+  if (!result.success || !result.uploadUrl) {
+  throw new Error(
+    result.error || "Drive no devolvió la URL de subida"
+  );
+}
 const chunkSize = 5 * 1024 * 1024;
 
 const totalChunks = Math.ceil(file.size / chunkSize);
