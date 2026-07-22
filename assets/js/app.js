@@ -928,72 +928,49 @@ async function uploadFileInChunks(file) {
 const chunkSize = 5 * 1024 * 1024;
 
 const totalChunks = Math.ceil(file.size / chunkSize);
-const firstChunk = file.slice(0, chunkSize);
-
-const uploadResponse = await fetch(result.uploadUrl, {
-  method: "PUT",
-  headers: {
-    "Content-Type": file.type,
-    "Content-Range": `bytes 0-${firstChunk.size - 1}/${file.size}`
-  },
-  body: firstChunk
-});
-
-console.log("Drive respondió:", uploadResponse.status);
-
 for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
   const start = chunkIndex * chunkSize;
   const end = Math.min(start + chunkSize, file.size);
   const chunk = file.slice(start, end);
 
-  const base64 = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve(reader.result.split(",")[1]);
-    };
-
-    reader.onerror = reject;
-
-    reader.readAsDataURL(chunk);
+  const chunkResponse = await fetch(result.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "Content-Range": `bytes ${start}-${end - 1}/${file.size}`
+    },
+    body: chunk
   });
 
-  const chunkResponse = await fetch(UPLOAD_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "chunk",
-      uploadId: result.uploadId,
-      chunkIndex,
-      base64
-    })
-  });
+  if (chunkResponse.status === 308) {
+    console.log(
+      `Drive recibió bloque ${chunkIndex + 1} de ${totalChunks}`
+    );
+    continue;
+  }
 
-  const chunkResult = await chunkResponse.json();
+  if (!chunkResponse.ok) {
+    const errorText = await chunkResponse.text();
 
-  if (!chunkResult.success) {
     throw new Error(
-      chunkResult.error || `Error al subir chunk ${chunkIndex}`
+      `Drive rechazó el bloque ${chunkIndex + 1}: ` +
+      `${chunkResponse.status} ${errorText}`
     );
   }
 
-  console.log(
-    `Chunk ${chunkIndex + 1} de ${totalChunks} enviado`
-  );
+  const driveFile = await chunkResponse.json();
+
+  console.log("Archivo completado en Drive:", driveFile);
+
+  return {
+  success: true,
+  fileId: driveFile.id,
+  storedFileName: result.storedFileName
+};
 }
 
-const finishResponse = await fetch(UPLOAD_ENDPOINT, {
-  method: "POST",
-  body: JSON.stringify({
-    action: "finish",
-    uploadId: result.uploadId,
-    fileName: file.name,
-    mimeType: file.type,
-    deviceToken: AppState.device.token,
-    sectionId: AppState.upload.section?.id || "general",
-    totalChunks
-  })
-});
-
-return finishResponse;
+throw new Error(
+  "Drive recibió todos los bloques, pero no confirmó el archivo final"
+);
 }
 renderApp();
