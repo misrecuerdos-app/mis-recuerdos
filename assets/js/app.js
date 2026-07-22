@@ -921,32 +921,54 @@ async function uploadFileInChunks(file) {
 
 const chunkSize = 5 * 1024 * 1024;
 
-const firstChunk = file.slice(0, chunkSize);
+const totalChunks = Math.ceil(file.size / chunkSize);
 
-const base64 = await new Promise((resolve, reject) => {
-  const reader = new FileReader();
+for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+  const start = chunkIndex * chunkSize;
+  const end = Math.min(start + chunkSize, file.size);
+  const chunk = file.slice(start, end);
 
-  reader.onload = () => {
-    resolve(reader.result.split(",")[1]);
-  };
+  const base64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
-  reader.onerror = reject;
+    reader.onload = () => {
+      resolve(reader.result.split(",")[1]);
+    };
 
-  reader.readAsDataURL(firstChunk);
+    reader.onerror = reject;
+
+    reader.readAsDataURL(chunk);
+  });
+
+  const chunkResponse = await fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "chunk",
+      uploadId: result.uploadId,
+      chunkIndex,
+      base64
+    })
+  });
+
+  const chunkResult = await chunkResponse.json();
+
+  if (!chunkResult.success) {
+    throw new Error(
+      chunkResult.error || `Error al subir chunk ${chunkIndex}`
+    );
+  }
+
+  console.log(
+    `Chunk ${chunkIndex + 1} de ${totalChunks} enviado`
+  );
+}
+
+return new Response(JSON.stringify({
+  success: true
+}), {
+  headers: {
+    "Content-Type": "application/json"
+  }
 });
-
-console.log(result);
-console.log(base64.length);
-const chunkResponse = await fetch(UPLOAD_ENDPOINT, {
-  method: "POST",
-  body: JSON.stringify({
-    action: "chunk",
-    uploadId: result.uploadId,
-    chunkIndex: 0,
-    base64
-  })
-});
-
-return chunkResponse;
 }
 renderApp();
