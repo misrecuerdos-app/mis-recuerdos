@@ -941,7 +941,6 @@ const uploadResponse = await fetch(result.uploadUrl, {
 
 console.log("Drive respondió:", uploadResponse.status);
 
-throw new Error("STOP PUT");
 for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
   const start = chunkIndex * chunkSize;
   const end = Math.min(start + chunkSize, file.size);
