@@ -520,6 +520,29 @@ function openViewer(index) {
 
   viewer.className = "media-viewer";
 
+  const mediaContent = item.mimeType.startsWith("video/")
+    ? `
+      <video
+        class="media-viewer-video"
+        controls
+        autoplay
+        playsinline
+      >
+        <source
+          src="https://drive.google.com/uc?export=download&id=${item.fileId}"
+          type="${item.mimeType}"
+        >
+        Tu navegador no puede reproducir este video.
+      </video>
+    `
+    : `
+      <img
+        class="media-viewer-image"
+        src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
+        alt=""
+      >
+    `;
+
   viewer.innerHTML = `
     <button
       class="media-viewer-close"
@@ -537,11 +560,7 @@ function openViewer(index) {
       ‹
     </button>
 
-    <img
-      class="media-viewer-image"
-      src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-      alt=""
-    >
+    ${mediaContent}
 
     <button
       class="media-viewer-arrow media-viewer-next"
