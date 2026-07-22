@@ -958,13 +958,18 @@ for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
     );
   }
 
-  const driveFile = await chunkResponse.json();
+  let driveFile = null;
 
+try {
+  driveFile = await chunkResponse.json();
   console.log("Archivo completado en Drive:", driveFile);
+} catch (e) {
+  console.warn("No fue posible leer la respuesta final de Drive.", e);
+}
 
-  return {
+return {
   success: true,
-  fileId: driveFile.id,
+  fileId: driveFile?.id || null,
   storedFileName: result.storedFileName
 };
 }
