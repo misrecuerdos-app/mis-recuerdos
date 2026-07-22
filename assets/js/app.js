@@ -937,12 +937,16 @@ const base64 = await new Promise((resolve, reject) => {
 
 console.log(result);
 console.log(base64.length);
-return new Response(JSON.stringify({
-  success: true
-}), {
-  headers: {
-    "Content-Type": "application/json"
-  }
-});  
+const chunkResponse = await fetch(UPLOAD_ENDPOINT, {
+  method: "POST",
+  body: JSON.stringify({
+    action: "chunk",
+    uploadId: result.uploadId,
+    chunkIndex: 0,
+    base64
+  })
+});
+
+return chunkResponse;
 }
 renderApp();
