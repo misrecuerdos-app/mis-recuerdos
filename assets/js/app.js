@@ -933,7 +933,10 @@ for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
   const end = Math.min(start + chunkSize, file.size);
   const chunk = file.slice(start, end);
 
-  const chunkResponse = await fetch(result.uploadUrl, {
+  let chunkResponse;
+
+try {
+  chunkResponse = await fetch(result.uploadUrl, {
     method: "PUT",
     headers: {
       "Content-Type": file.type || "application/octet-stream",
@@ -941,6 +944,35 @@ for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
     },
     body: chunk
   });
+} catch (error) {
+  if (chunkIndex !== totalChunks - 1) {
+    throw error;
+  }
+
+  const confirmResponse = await fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "confirm",
+      storedFileName: result.storedFileName,
+      fileName: file.name,
+      mimeType: file.type
+    })
+  });
+
+  const confirmResult = await confirmResponse.json();
+
+  if (!confirmResult.success) {
+    throw new Error(
+      confirmResult.error || "No se pudo confirmar la subida"
+    );
+  }
+
+  return {
+    success: true,
+    fileId: confirmResult.fileId || null,
+    storedFileName: result.storedFileName
+  };
+}
 
   if (chunkResponse.status === 308) {
     console.log(
