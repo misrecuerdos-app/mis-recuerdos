@@ -928,7 +928,20 @@ async function uploadFileInChunks(file) {
 const chunkSize = 5 * 1024 * 1024;
 
 const totalChunks = Math.ceil(file.size / chunkSize);
+const firstChunk = file.slice(0, CHUNK_SIZE);
 
+const uploadResponse = await fetch(result.uploadUrl, {
+  method: "PUT",
+  headers: {
+    "Content-Type": file.type,
+    "Content-Range": `bytes 0-${firstChunk.size - 1}/${file.size}`
+  },
+  body: firstChunk
+});
+
+console.log("Drive respondió:", uploadResponse.status);
+
+throw new Error("STOP PUT");
 for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
   const start = chunkIndex * chunkSize;
   const end = Math.min(start + chunkSize, file.size);
