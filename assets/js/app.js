@@ -908,4 +908,18 @@ if (file.size > CHUNK_SIZE) {
 
 }
 getDeviceToken();
+async function uploadFileInChunks(file) {
+  const response = await fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "start"
+    })
+  });
+
+  const result = await response.json();
+
+console.log(result);
+
+throw new Error("STOP");
+}
 renderApp();
