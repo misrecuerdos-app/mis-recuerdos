@@ -965,11 +965,12 @@ try {
   const confirmResponse = await fetch(UPLOAD_ENDPOINT, {
     method: "POST",
     body: JSON.stringify({
-      action: "confirm",
-      storedFileName: result.storedFileName,
-      fileName: file.name,
-      mimeType: file.type
-    })
+  action: "confirm",
+  storedFileName: result.storedFileName,
+  fileName: file.name,
+  mimeType: file.type,
+  deviceToken: AppState.device.token
+})
   });
 
   const confirmResult = await confirmResponse.json();
