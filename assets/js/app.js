@@ -522,15 +522,14 @@ function openViewer(index) {
 
   const mediaContent = item.mimeType.startsWith("video/")
   ? `
-    <iframe
-      class="media-viewer-video"
-      src="https://drive.google.com/file/d/${item.fileId}/preview"
-      allow="autoplay; fullscreen"
-      allowfullscreen
-    ></iframe>
-  `
+      <iframe
+        class="media-viewer-video"
+        src="https://drive.google.com/file/d/${item.fileId}/preview"
+        allow="autoplay; fullscreen"
+        allowfullscreen
+      ></iframe>
     `
-    : `
+  : `
       <img
         class="media-viewer-image"
         src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
