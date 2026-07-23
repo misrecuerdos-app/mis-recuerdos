@@ -521,19 +521,14 @@ function openViewer(index) {
   viewer.className = "media-viewer";
 
   const mediaContent = item.mimeType.startsWith("video/")
-    ? `
-      <video
-        class="media-viewer-video"
-        controls
-        autoplay
-        playsinline
-      >
-        <source
-          src="https://drive.google.com/uc?export=download&id=${item.fileId}"
-          type="${item.mimeType}"
-        >
-        Tu navegador no puede reproducir este video.
-      </video>
+  ? `
+    <iframe
+      class="media-viewer-video"
+      src="https://drive.google.com/file/d/${item.fileId}/preview"
+      allow="autoplay; fullscreen"
+      allowfullscreen
+    ></iframe>
+  `
     `
     : `
       <img
