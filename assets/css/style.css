@@ -1069,9 +1069,29 @@ background-position: center;
 }
 
 .mine-checkbox input {
-  width: 22px;
-  height: 22px;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: rgba(15, 13, 18, .7);
   cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.mine-checkbox input:checked {
+  background: #d94f91;
+  border-color: #ffffff;
+}
+
+.mine-checkbox input:checked::after {
+  content: "✓";
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
 }
 .mine-thumbnail img {
   width: 100%;
