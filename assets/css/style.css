@@ -1054,7 +1054,12 @@ background-position: center;
   box-shadow: 0 0 14px rgba(217,79,145,.45);
   transform: scale(.97);
   transition: .15s ease;
+} 
+  .mine-thumbnail-wrapper {
+  position: relative;
+  width: 100%;
 }
+
 
 .mine-checkbox {
   position: absolute;
