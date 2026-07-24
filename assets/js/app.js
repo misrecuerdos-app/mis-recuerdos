@@ -232,7 +232,15 @@ async function loadMineGrouped() {
                     alt=""
                     loading="lazy"
                   >
-
+                 ${mineSelectionMode ? `
+  <div class="mine-checkbox">
+    <input
+      type="checkbox"
+      ${selectedMineItems.has(item.fileId) ? "checked" : ""}
+      onclick="event.stopPropagation(); toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
+    >
+  </div>
+` : ""}
                   ${item.mimeType.startsWith("video/")
                     ? `<span class="live-play-icon">▶</span>`
                     : ""
