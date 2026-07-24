@@ -223,7 +223,7 @@ async function loadMineGrouped() {
               return `
                 <div class="mine-thumbnail-wrapper">
   <button
-    class="mine-thumbnail"
+    class="mine-thumbnail ${selectedMineItems.has(item.fileId) ? 'selected' : ''}"
     onclick="toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
     aria-label="Abrir recuerdo"
   >
@@ -532,17 +532,17 @@ function toggleMineSelection(event, fileId, itemIndex) {
 
   event.stopPropagation();
 
-  if (selectedMineItems.size === 0) {
-    openViewer(itemIndex);
-    return;
-  }
+  if (!mineSelectionMode) {
+  openViewer(itemIndex);
+  return;
+}
 
   if (selectedMineItems.has(fileId)) {
     selectedMineItems.delete(fileId);
   } else {
     selectedMineItems.add(fileId);
   }
-
+  loadMineGrouped();
   console.log([...selectedMineItems]);
 }
 function toggleMineSelectionMode() {
