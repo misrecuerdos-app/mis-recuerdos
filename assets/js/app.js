@@ -247,6 +247,7 @@ async function loadMineGrouped() {
     >
   </div>
 ` : ""}
+</div>
               `;
             }).join("")}
           </div>
