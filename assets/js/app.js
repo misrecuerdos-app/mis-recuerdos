@@ -232,8 +232,14 @@ async function loadMineGrouped() {
                     alt=""
                     loading="lazy"
                   >
-                 ${mineSelectionMode ? `
-  <div class="mine-checkbox">
+   
+                  ${item.mimeType.startsWith("video/")
+                    ? `<span class="live-play-icon">▶</span>`
+                    : ""
+                  }
+                </button>
+               ${mineSelectionMode ? `
+    <div class="mine-checkbox">
     <input
       type="checkbox"
       ${selectedMineItems.has(item.fileId) ? "checked" : ""}
@@ -241,11 +247,6 @@ async function loadMineGrouped() {
     >
   </div>
 ` : ""}
-                  ${item.mimeType.startsWith("video/")
-                    ? `<span class="live-play-icon">▶</span>`
-                    : ""
-                  }
-                </button>
               `;
             }).join("")}
           </div>
