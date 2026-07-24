@@ -2,6 +2,8 @@ const app = document.getElementById("app");
 const UPLOAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbyIDrzh6dqbdaZug7udzdXLDiFQVgt1EG83DvOaTQJxM5j5salcbEgfBoVoQ4vqFKlJ/exec";
 
 let liveItems = [];
+let selectedMineItems = new Set();
+let mineSelectionMode = false;
 let currentViewerIndex = -1;
 function getDeviceToken() {
 
@@ -149,7 +151,13 @@ function renderMine() {
           <h2>Mis recuerdos</h2>
           <p>Todas las fotos y videos que has compartido.</p>
         </div>
-
+        <button
+  id="mineSelectButton"
+  class="mine-select-button"
+  onclick="toggleMineSelectionMode()"
+>
+  Seleccionar
+</button>
         <div id="mineContent">
           Cargando recuerdos...
         </div>
@@ -213,11 +221,12 @@ async function loadMineGrouped() {
               );
 
               return `
-                <button
-                  class="mine-thumbnail"
-                  onclick="openViewer(${itemIndex})"
-                  aria-label="Abrir recuerdo"
-                >
+                <div class="mine-thumbnail-wrapper">
+  <button
+    class="mine-thumbnail"
+    onclick="toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
+    aria-label="Abrir recuerdo"
+  >
                   <img
                     src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
                     alt=""
@@ -508,9 +517,39 @@ function formatRelativeTime(dateString) {
   if (days === 1) return "Ayer";
 
   return new Date(dateString).toLocaleDateString();
-
 }
 
+function toggleMineSelection(event, fileId, itemIndex) {
+
+  event.stopPropagation();
+
+  if (selectedMineItems.size === 0) {
+    openViewer(itemIndex);
+    return;
+  }
+
+  if (selectedMineItems.has(fileId)) {
+    selectedMineItems.delete(fileId);
+  } else {
+    selectedMineItems.add(fileId);
+  }
+
+  console.log([...selectedMineItems]);
+}
+function toggleMineSelectionMode() {
+
+  mineSelectionMode = !mineSelectionMode;
+
+  selectedMineItems.clear();
+
+  const button = document.getElementById("mineSelectButton");
+
+  button.textContent = mineSelectionMode
+    ? "Cancelar"
+    : "Seleccionar";
+
+  loadMineGrouped();
+}
 function openViewer(index) {
   currentViewerIndex = index;
 
