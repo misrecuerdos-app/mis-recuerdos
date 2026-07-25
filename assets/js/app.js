@@ -158,10 +158,14 @@ function renderMine() {
 >
   Seleccionar
 </button>
-<div
-  id="mineDeleteBar"
-  class="mine-delete-bar"
-  style="display:none;"
+
+  <div id="mineContent">
+     Cargando recuerdos...
+  </div>
+  <div
+    id="mineDeleteBar"
+    class="mine-delete-bar"
+    style="display:none;"
 >
   <button
     class="mine-delete-button"
@@ -170,12 +174,8 @@ function renderMine() {
     Eliminar (0)
   </button>
 </div>
-        <div id="mineContent">
-          Cargando recuerdos...
-        </div>
-
       </section>
-
+ 
       ${UI.bottomNav({
         active: "mine"
       })}
