@@ -1126,7 +1126,13 @@ background-position: center;
   color: #7d7386;
 }
 .mine-delete-bar{
-  margin:12px 0 16px;
+  position:fixed;
+  left:50%;
+  bottom:74px;
+  transform:translateX(-50%);
+  width:calc(100% - 32px);
+  max-width:430px;
+  z-index:100;
 }
 
 .mine-delete-button{
