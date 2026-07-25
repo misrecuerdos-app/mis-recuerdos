@@ -555,6 +555,15 @@ function toggleMineSelection(event, fileId, itemIndex) {
   } else {
     selectedMineItems.add(fileId);
   }
+  const deleteBar = document.getElementById("mineDeleteBar");
+
+if (deleteBar) {
+  deleteBar.style.display =
+    selectedMineItems.size > 0 ? "block" : "none";
+
+  deleteBar.querySelector(".mine-delete-button").textContent =
+    `Eliminar (${selectedMineItems.size})`;
+}
   loadMineGrouped();
   console.log([...selectedMineItems]);
 }
