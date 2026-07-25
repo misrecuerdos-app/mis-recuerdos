@@ -158,6 +158,18 @@ function renderMine() {
 >
   Seleccionar
 </button>
+<div
+  id="mineDeleteBar"
+  class="mine-delete-bar"
+  style="display:none;"
+>
+  <button
+    class="mine-delete-button"
+    onclick="deleteSelectedMineItems()"
+  >
+    Eliminar (0)
+  </button>
+</div>
         <div id="mineContent">
           Cargando recuerdos...
         </div>
