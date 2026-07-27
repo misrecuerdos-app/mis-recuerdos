@@ -16,6 +16,7 @@ const Auth = {
         localStorage.removeItem("mis-recuerdos-session");
       }
     }
+    
 
     if (!window.google?.accounts?.id) {
       setTimeout(() => this.initialize(), 200);
