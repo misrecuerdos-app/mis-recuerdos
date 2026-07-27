@@ -8,7 +8,6 @@ const UI = {
     const iconMarkup = icon
       ? `<span class="button-icon">${icon}</span>`
       : "";
-
     return `
       <button
         class="btn btn-${variant}"
