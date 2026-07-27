@@ -12,7 +12,6 @@ function getDeviceToken() {
 
   if (!token) {
     token = crypto.randomUUID();
-
     localStorage.setItem(
       "recuerdos-device-token",
       token
