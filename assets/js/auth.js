@@ -4,7 +4,6 @@ const Auth = {
 
   initialize() {
     const session = localStorage.getItem("mis-recuerdos-session");
-
     if (session) {
       try {
         const savedSession = JSON.parse(session);
