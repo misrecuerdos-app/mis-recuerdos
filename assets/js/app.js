@@ -18,7 +18,6 @@ function getDeviceToken() {
       token
     );
   }
-
   AppState.device.token = token;
 
 }
