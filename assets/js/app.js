@@ -9,7 +9,6 @@ let currentInfoTopic = null;
 function getDeviceToken() {
 
   let token = localStorage.getItem("recuerdos-device-token");
-
   if (!token) {
     token = crypto.randomUUID();
 
