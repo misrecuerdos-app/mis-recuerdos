@@ -8,6 +8,7 @@ function isIOSDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
 
+
 function updateInstallButtons() {
   document.querySelectorAll("[data-install-app]").forEach(button => {
     if (isStandaloneMode()) {
