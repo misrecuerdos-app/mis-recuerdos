@@ -8,6 +8,7 @@ const AppState = {
     website: "",
     supportEmail: "misrecuerdos.app@gmail.com"
 },
+    
     security: {
     isLoggedIn: false,
     user: null,
