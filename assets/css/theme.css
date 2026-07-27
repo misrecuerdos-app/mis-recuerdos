@@ -1,0 +1,50 @@
+:root {
+  /* Marca */
+  --color-primary: #d94f91;
+  --color-secondary: #8b5cf6;
+  --color-primary-dark: #5a3150;
+
+  /* Superficies */
+  --color-background: #f8f1f6;
+  --color-surface: #ffffff;
+  --color-surface-soft: #fff7fb;
+
+  /* Texto */
+  --color-text: #44283c;
+  --color-text-secondary: #765f72;
+  --color-text-muted: #9b8595;
+  --color-on-primary: #ffffff;
+
+  /* Bordes */
+  --color-border: #ead3e5;
+
+  /* Radios */
+  --radius-small: 12px;
+  --radius-medium: 18px;
+  --radius-large: 24px;
+  --radius-app: 32px;
+  --radius-round: 999px;
+
+  /* Espaciados */
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Sombras */
+  --shadow-soft: 0 10px 24px rgba(133, 53, 96, 0.10);
+  --shadow-card: 0 16px 35px rgba(133, 53, 96, 0.18);
+  --shadow-app: 0 20px 60px rgba(0, 0, 0, 0.18);
+
+  /* Animaciones */
+  --transition-fast: 160ms ease;
+  --transition-normal: 280ms ease;
+
+  /* Gradientes */
+  --gradient-primary: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-secondary)
+  );
+}
