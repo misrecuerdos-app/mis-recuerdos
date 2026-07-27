@@ -19,7 +19,6 @@ const AppState = {
         name: "XV Años Sofía",
 
         date: "29 Agosto 2026",
-
         slogan:
         "Comparte los momentos que harán inolvidable este día.",
 
