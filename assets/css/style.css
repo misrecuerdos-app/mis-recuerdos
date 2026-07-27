@@ -1502,3 +1502,4 @@ background-position: center;
 @media (display-mode: standalone) {
   .menu-button-light { top: max(18px, env(safe-area-inset-top)); }
 }
+
