@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#a62d55" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="XV Sofi" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <title>XV Sofi — Mis Recuerdos</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="assets/images/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/icons/favicon-32.png" />
+
+  <style>
+    :root {
+      --vino: #8f2448;
+      --rosa: #d94f91;
+      --rosa-claro: #fff4f9;
+      --texto: #402d3c;
+      --dorado: #d8aa55;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--texto);
+      background: #1d111b;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+      background:
+        linear-gradient(rgba(30, 13, 27, .54), rgba(30, 13, 27, .72)),
+        url("assets/images/hero/sofi-home.webp") center / cover no-repeat;
+    }
+
+    .welcome-card {
+      width: min(430px, 100%);
+      padding: 28px 24px 24px;
+      border: 1px solid rgba(255,255,255,.32);
+      border-radius: 28px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .app-icon {
+      width: 92px;
+      height: 92px;
+      display: block;
+      margin: 0 auto 17px;
+      border-radius: 23px;
+      box-shadow: 0 12px 25px rgba(80, 20, 49, .25);
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--vino);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: #472c40;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(34px, 9vw, 46px);
+      line-height: 1;
+    }
+
+    .line {
+      width: 72px;
+      height: 2px;
+      margin: 17px auto;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, var(--dorado), transparent);
+    }
+
+    .intro {
+      margin: 0 auto 23px;
+      max-width: 330px;
+      color: #685765;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button, a {
+      font: inherit;
+    }
+
+    .primary,
+    .secondary {
+      width: 100%;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, #d94f91, #9d2853);
+      box-shadow: 0 10px 24px rgba(180, 46, 97, .28);
+    }
+
+    .secondary {
+      margin-top: 12px;
+      border: 1px solid #e5c7d6;
+      color: var(--vino);
+      background: white;
+    }
+
+    .note {
+      margin: 16px 8px 0;
+      color: #82737f;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: end center;
+      padding: 18px;
+      background: rgba(20, 11, 18, .68);
+    }
+
+    .modal.open { display: grid; }
+
+    .modal-card {
+      width: min(430px, 100%);
+      max-height: calc(100dvh - 36px);
+      overflow: auto;
+      padding: 25px 22px 22px;
+      border-radius: 24px;
+      background: white;
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+      text-align: left;
+    }
+
+    .modal-card h2 {
+      margin: 0 36px 16px 0;
+      color: #472c40;
+      font-size: 23px;
+    }
+
+    .modal-card ol {
+      margin: 0;
+      padding-left: 24px;
+      color: #5e4d59;
+      line-height: 1.5;
+    }
+
+    .modal-card li { margin: 12px 0; }
+
+    .close {
+      float: right;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 50%;
+      background: #f4edf2;
+      color: #71435e;
+      font-size: 25px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .done {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 17px;
+      border: 0;
+      border-radius: 14px;
+      color: white;
+      background: var(--rosa);
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="welcome-card">
+    <img class="app-icon" src="assets/images/icons/icon-192.png" alt="Mis Recuerdos" />
+
+    <p class="eyebrow">Bienvenidos a</p>
+    <h1>XV Sofi</h1>
+    <div class="line"></div>
+
+    <p class="intro">
+      Da clic para tener acceso a la aplicación y compartir las fotos y videos que harán inolvidable este día.
+    </p>
+
+    <a class="primary" href="./index.html?v=105">Entrar a Mis Recuerdos</a>
+    <button class="secondary" id="createAccessButton" type="button">
+      Crear icono de acceso en mi celular
+    </button>
+
+    <p class="note">
+      Una vez creado el icono, podrás entrar directamente a la aplicación sin volver a escanear el código QR.
+    </p>
+  </main>
+
+  <div class="modal" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <section class="modal-card">
+      <button class="close" id="closeModal" aria-label="Cerrar">×</button>
+      <h2 id="modalTitle">Crear acceso “XV Sofi”</h2>
+      <div id="instructions"></div>
+      <button class="done" id="doneButton">Entendido</button>
+    </section>
+  </div>
+
+  <script>
+    let deferredInstallPrompt = null;
+
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    // Si el icono abre esta página, pasar directamente al Home de la app.
+    if (standalone) {
+      window.location.replace("./index.html");
+    }
+
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+
+    const modal = document.getElementById("accessModal");
+    const instructions = document.getElementById("instructions");
+
+    function openModal() {
+      if (isIOS) {
+        instructions.innerHTML = `
+          <ol>
+            <li>Toca el botón <strong>Compartir</strong> de Safari.</li>
+            <li>Desliza las opciones y selecciona <strong>Agregar a pantalla de inicio</strong>.</li>
+            <li>Comprueba que el nombre diga <strong>XV Sofi</strong> y toca <strong>Agregar</strong>.</li>
+          </ol>
+        `;
+      } else {
+        instructions.innerHTML = `
+          <ol>
+            <li>Abre el menú del navegador.</li>
+            <li>Selecciona <strong>Instalar aplicación</strong> o <strong>Agregar a pantalla principal</strong>.</li>
+            <li>Confirma para crear el icono <strong>XV Sofi</strong>.</li>
+          </ol>
+        `;
+      }
+      modal.classList.add("open");
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+    }
+
+    window.addEventListener("beforeinstallprompt", event => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+    });
+
+    document.getElementById("createAccessButton").addEventListener("click", async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        return;
+      }
+      openModal();
+    });
+
+    document.getElementById("closeModal").addEventListener("click", closeModal);
+    document.getElementById("doneButton").addEventListener("click", closeModal);
+    modal.addEventListener("click", event => {
+      if (event.target === modal) closeModal();
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js").catch(console.warn);
+    }
+  </script>
+</body>
+</html>
