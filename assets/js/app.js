@@ -84,7 +84,7 @@ function getVideoPlaceholderDataUrl() {
   y="370"
   text-anchor="middle"
   font-family="Arial, sans-serif"
-  font-size="38"
+  font-size="52"
   font-weight="600"
   fill="#5a3150">
 
