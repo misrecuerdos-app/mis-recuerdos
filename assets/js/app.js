@@ -79,11 +79,24 @@ function getVideoPlaceholderDataUrl() {
       <rect width="100%" height="100%" fill="#f2edf2"/>
       <circle cx="300" cy="260" r="74" fill="#d94f91"/>
       <polygon points="280,220 280,300 350,260" fill="white"/>
-      <text x="300" y="380" text-anchor="middle"
-        font-family="Arial, sans-serif" font-size="52" fill="#5a3150">
-        Miniatura no disponible,
-        Oprime "Subir"
-      </text>
+      <text
+  x="300"
+  y="370"
+  text-anchor="middle"
+  font-family="Arial, sans-serif"
+  font-size="38"
+  font-weight="600"
+  fill="#5a3150">
+
+  <tspan x="300" dy="0">
+    Miniatura no disponible
+  </tspan>
+
+  <tspan x="300" dy="48">
+    Oprime "Subir"
+  </tspan>
+
+</text>
     </svg>
   `;
 
