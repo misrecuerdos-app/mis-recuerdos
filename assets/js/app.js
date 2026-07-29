@@ -81,7 +81,7 @@ function getVideoPlaceholderDataUrl() {
       <polygon points="280,220 280,300 350,260" fill="white"/>
       <text x="300" y="380" text-anchor="middle"
         font-family="Arial, sans-serif" font-size="48" fill="#5a3150">
-        Video listo para subir
+        Video Seleccionado, Oprime "Subir" Miniatura no disponible
       </text>
     </svg>
   `;
