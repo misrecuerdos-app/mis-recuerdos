@@ -97,11 +97,11 @@ function getProcessingVideoThumbnailDataUrl() {
       <circle cx="400" cy="330" r="88" fill="#d94f91"/>
       <polygon points="372,278 372,382 462,330" fill="white"/>
       <text x="400" y="500" text-anchor="middle"
-        font-family="Arial, sans-serif" font-size="34" fill="white">
+        font-family="Arial, sans-serif" font-size="52" fill="white">
         Procesando vista previa...
       </text>
       <text x="400" y="550" text-anchor="middle"
-        font-family="Arial, sans-serif" font-size="24" fill="#d9cad7">
+        font-family="Arial, sans-serif" font-size="34" fill="#d9cad7">
         El video se subió correctamente
       </text>
     </svg>
