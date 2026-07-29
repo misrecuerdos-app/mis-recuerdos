@@ -80,8 +80,8 @@ function getVideoPlaceholderDataUrl() {
       <circle cx="300" cy="260" r="74" fill="#d94f91"/>
       <polygon points="280,220 280,300 350,260" fill="white"/>
       <text x="300" y="380" text-anchor="middle"
-        font-family="Arial, sans-serif" font-size="30" fill="#5a3150">
-        Video seleccionado
+        font-family="Arial, sans-serif" font-size="48" fill="#5a3150">
+        Video listo para subir
       </text>
     </svg>
   `;
