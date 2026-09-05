@@ -362,6 +362,16 @@ function renderInfo() {
   `;
 }
 
+let galleryContext = {
+  url: "",
+  showInfo: true,
+  sort: "recent"
+};
+
+let galleryTapTimer = null;
+let galleryTapIndex = -1;
+let galleryTapAt = 0;
+
 function renderLive() {
   app.innerHTML = `
     <main class="app-shell gallery-shell">
@@ -371,388 +381,205 @@ function renderLive() {
       })}
       <section class="live-page">
         <div class="gallery-switch">
-  <button
-  class="gallery-switch-button active"
-  onclick="showGalleryMode('live')"
->
-  🕒 Recientes
-</button>
-  <button
-    class="gallery-switch-button"
-    onclick="showGalleryMode('sections')"
-  >
-    📂 Secciones
-  </button>
-</div>
-<div id="galleryBody">
-  <div class="live-heading">
-    <h2>Recientes</h2>
-    <p>Últimos recuerdos compartidos</p>
-  </div>
-  <div id="liveContent" class="live-content">
-    Cargando recuerdos...
-  </div>
-</div>
-      </section>
-      ${UI.bottomNav({
-        active: "live"
-      })}
-    </main>
-  `;
-  loadGalleryItems(
-  `${UPLOAD_ENDPOINT}?action=live`
-);
-}
-
-function renderMine() {
-  app.innerHTML = `
-    <main class="app-shell gallery-shell">
-
-      ${UI.header({
-        title: "Mis Subidas",
-        back: "home"
-      })}
-
-      <section class="live-page">
-
-        <div class="live-heading">
-          <h2>Mis recuerdos</h2>
-          <p>Todas las fotos y videos que has compartido.</p>
+          <button
+            class="gallery-switch-button active"
+            onclick="showGalleryMode('live')"
+          >
+            🕒 Recientes
+          </button>
+          <button
+            class="gallery-switch-button"
+            onclick="showGalleryMode('sections')"
+          >
+            📂 Secciones
+          </button>
         </div>
-        <button
-  id="mineSelectButton"
-  class="mine-select-button"
-  onclick="toggleMineSelectionMode()"
->
-  Seleccionar para borrar
-</button>
-
-  <div id="mineContent">
-     Cargando recuerdos...
-  </div>
-  <div
-    id="mineDeleteBar"
-    class="mine-delete-bar"
-    style="display:none;"
->
-  <button
-    class="mine-delete-button"
-    onclick="deleteSelectedMineItems()"
-  >
-    Eliminar (0)
-  </button>
-</div>
-      </section>
- 
-      ${UI.bottomNav({
-        active: "mine"
-      })}
-
-    </main>
-  `;
-
-  loadMineGrouped();
-}
-async function loadMineGrouped() {
-  const container = document.getElementById("mineContent");
-
-  try {
-    const identity = requireGoogleIdentity();
-    const params = new URLSearchParams({
-      action: "mine",
-      googleUserId: identity.googleUserId,
-      guestGoogleId: identity.guestGoogleId,
-      uploaderEmail: identity.uploaderEmail,
-      _: String(Date.now())
-    });
-
-    const response = await fetch(`${UPLOAD_ENDPOINT}?${params.toString()}`);
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error("No fue posible cargar Mis Subidas.");
-    }
-
-    const items = result.items || [];
-    liveItems = items;
-
-    if (!items.length) {
-      container.innerHTML = `
-        <div class="live-empty">
-          Aún no has compartido recuerdos.
-        </div>
-      `;
-      return;
-    }
-
-    const sectionsWithItems = AppState.event.sections
-      .map(section => ({
-        ...section,
-        items: items.filter(item => item.sectionId === section.id)
-      }))
-      .filter(section => section.items.length > 0);
-
-    container.innerHTML = sectionsWithItems
-      .map(section => `
-        <section class="mine-section-group">
-          <h3 class="mine-section-title">
-            ${section.icon}
-            ${section.id === "general" ? "General" : section.name}
-          </h3>
-
-          <div class="mine-section-grid">
-            ${section.items.map(item => {
-              const itemIndex = items.findIndex(
-                currentItem => currentItem.fileId === item.fileId
-              );
-
-              return `
-                <div class="mine-thumbnail-wrapper">
-  <button
-    class="mine-thumbnail"
-    onclick="toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
-    aria-label="Abrir recuerdo"
-  >
-                  <img
-                    src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
-                    alt=""
-                    loading="lazy"
-                    data-file-id="${item.fileId}"
-                    data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}"
-                    onerror="handleDriveThumbnailError(this)"
-                  >
-   
-                  ${item.mimeType.startsWith("video/")
-                    ? `<span class="live-play-icon">▶</span>`
-                    : ""
-                  }
-                </button>
-               ${mineSelectionMode ? `
-    <div class="mine-checkbox">
-    <input
-      id="mineCheckbox-${item.fileId}"
-      type="checkbox"
-      ${selectedMineItems.has(item.fileId) ? "checked" : ""}
-      onclick="event.stopPropagation(); toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
-    >
-  </div>
-` : ""}
-</div>
-              `;
-            }).join("")}
+        <div id="galleryBody">
+          <div class="live-heading">
+            <h2>Recientes</h2>
+            <p>Últimos recuerdos compartidos</p>
           </div>
-        </section>
-      `)
-      .join("");
-
-    updateMineDeleteBar();
-
-    refreshPendingVideoThumbnails(container);
-
-  } catch (error) {
-    container.innerHTML = `
-      <div class="live-error">
-        ${error.message || "Error al cargar Mis Subidas."}
-      </div>
-    `;
-
-    console.error(error);
-  }
+          <div class="gallery-sort" aria-label="Ordenar galería">
+            <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
+            <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
+          </div>
+          <div id="liveContent" class="live-content">
+            Cargando recuerdos...
+          </div>
+        </div>
+      </section>
+      ${UI.bottomNav({ active: "live" })}
+    </main>
+  `;
+  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent");
 }
-function showGalleryMode(mode) {
-  const buttons = document.querySelectorAll(
-    ".gallery-switch-button"
+
+function normalizeGalleryItem(item) {
+  return {
+    ...item,
+    likes: Number(item.likes || 0),
+    likedByMe: Boolean(item.likedByMe)
+  };
+}
+
+function sortGalleryItems(items, sort = "recent") {
+  const normalized = items.map(normalizeGalleryItem);
+
+  if (sort === "likes") {
+    return normalized.sort((a, b) => {
+      const likesDiff = Number(b.likes || 0) - Number(a.likes || 0);
+      if (likesDiff !== 0) return likesDiff;
+      return new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+    });
+  }
+
+  return normalized.sort((a, b) =>
+    new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime()
   );
+}
 
-  buttons.forEach(button => {
-    button.classList.remove("active");
+function renderGallerySort(sort) {
+  document.querySelectorAll(".gallery-sort-button").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.getAttribute("onclick")?.includes(`'${sort}'`)
+    );
   });
+}
 
-  const galleryBody = document.getElementById("galleryBody");
+function setGallerySort(sort) {
+  galleryContext.sort = sort;
+  renderGallerySort(sort);
 
-  if (mode === "live") {
-    buttons[0].classList.add("active");
-
-    galleryBody.innerHTML = `
-      <div class="live-heading">
-        <h2>Recientes</h2>
-        <p>Últimos recuerdos compartidos</p>
-      </div>
-
-      <div id="liveContent" class="live-content">
-        Cargando recuerdos...
-      </div>
-    `;
-
+  // Al cambiar a "Más Likes" en la galería general, pedimos al backend
+  // el ranking completo, no solamente los 30 recuerdos más recientes.
+  if (galleryContext.url) {
     loadGalleryItems(
-  `${UPLOAD_ENDPOINT}?action=live`
-);
+      galleryContext.url,
+      galleryContext.showInfo,
+      sort
+    );
     return;
   }
 
-  buttons[1].classList.add("active");
+  const container = document.getElementById("liveContent");
+  if (!container) return;
 
-  galleryBody.innerHTML = `
-  <div class="gallery-sections-heading">
-    <h2>Explorar por sección</h2>
-    <p>Elige una parte del evento para ver sus recuerdos.</p>
-  </div>
-
-  <div
-    id="gallerySectionsList"
-    class="gallery-sections-list"
-  >
-    Cargando secciones...
-  </div>
-`;
-
-loadGallerySections();
+  const items = sortGalleryItems(liveItems, sort);
+  liveItems = items;
+  renderGalleryItems(items, galleryContext.showInfo);
 }
 
-async function loadGallerySections() {
-  const container = document.getElementById(
-    "gallerySectionsList"
-  );
+function handleGalleryTap(event, index) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const now = Date.now();
+  const isDoubleTap =
+    galleryTapIndex === index &&
+    now - galleryTapAt < 360;
+
+  if (isDoubleTap) {
+    window.clearTimeout(galleryTapTimer);
+    galleryTapTimer = null;
+    galleryTapIndex = -1;
+    galleryTapAt = 0;
+    animateLike(index);
+    toggleLike(index);
+    return;
+  }
+
+  galleryTapIndex = index;
+  galleryTapAt = now;
+  window.clearTimeout(galleryTapTimer);
+  galleryTapTimer = window.setTimeout(() => {
+    galleryTapIndex = -1;
+    galleryTapAt = 0;
+    openViewer(index);
+  }, 300);
+}
+
+function animateLike(index) {
+  const card = document.querySelector(`[data-gallery-index="${index}"]`);
+  if (!card) return;
+
+  const heart = document.createElement("div");
+  heart.className = "like-heart-animation";
+  heart.textContent = "♥";
+  card.querySelector(".live-media")?.appendChild(heart);
+  window.setTimeout(() => heart.remove(), 850);
+}
+
+function updateLikeIndicators() {
+  document.querySelectorAll("[data-gallery-index]").forEach(card => {
+    const index = Number(card.dataset.galleryIndex);
+    const item = liveItems[index];
+    if (!item) return;
+
+    const count = card.querySelector(".live-like-count");
+    if (count) count.textContent = `❤️ ${Number(item.likes || 0)}`;
+
+    card.classList.toggle("liked-by-me", Boolean(item.likedByMe));
+  });
+}
+
+async function toggleLike(index) {
+  const item = liveItems[index];
+  if (!item?.uuid) {
+    console.warn("Este recuerdo no tiene uuid; no se puede registrar el Like.");
+    return;
+  }
+
+  let identity;
+  try {
+    identity = requireGoogleIdentity();
+  } catch (error) {
+    return;
+  }
 
   try {
-    const response = await fetch(
-      `${UPLOAD_ENDPOINT}?action=sections`
-    );
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "like",
+        uuid: item.uuid,
+        ...identity
+      })
+    });
 
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error(
-        "No fue posible cargar las secciones."
-      );
+      throw new Error(result.error || "No fue posible registrar el Like.");
     }
 
-    container.innerHTML = result.sections
-      .map(section => `
-        <button
-          class="gallery-section-card"
-          onclick="openGallerySection('${section.id}')"
-        >
-          <div class="gallery-section-cover">
-            ${
-              section.coverFileId
-                ? `
-                  <img
-                    src="https://drive.google.com/thumbnail?id=${section.coverFileId}&sz=w800"
-                    alt=""
-                    loading="lazy"
-                  >
-                `
-                : `
-                  <div class="gallery-section-placeholder">
-                    ${section.icon}
-                  </div>
-                `
-            }
-          </div>
+    item.likes = Number(result.likes ?? item.likes ?? 0);
+    item.likedByMe = Boolean(result.likedByMe ?? result.liked);
+    updateViewerLikeCount();
 
-          <div class="gallery-section-info">
-            <div class="gallery-section-title">
-
-  <img
-    class="gallery-section-icon"
-    src="assets/images/sections/${section.id}.svg"
-    alt=""
-  >
-
-  <span>
-    ${section.id === "general"
-      ? "General"
-      : section.name}
-  </span>
-
-</div>
-
-            <div class="gallery-section-count">
-              ${section.count}
-              ${section.count === 1
-                ? "recuerdo"
-                : "recuerdos"}
-            </div>
-          </div>
-        </button>
-      `)
-      .join("");
-
-    refreshPendingVideoThumbnails(container);
-
+    if (galleryContext.sort === "likes") {
+      liveItems = sortGalleryItems(liveItems, "likes");
+      renderGalleryItems(liveItems, galleryContext.showInfo);
+    } else {
+      updateLikeIndicators();
+    }
   } catch (error) {
-    container.innerHTML = `
-      <div class="live-error">
-        Error al cargar las secciones.
-      </div>
-    `;
-
-    console.error(error);
+    console.error("Like:", error);
+    window.alert(error.message || "No fue posible registrar el Like.");
   }
 }
-function openGallerySection(sectionId) {
 
-  const galleryBody = document.getElementById("galleryBody");
-
-  galleryBody.innerHTML = `
-    <div class="live-heading">
-  <h2>${getSectionName(sectionId)}</h2>
-  <p>Recuerdos de esta sección</p>
-</div>
-
-    <div id="liveContent" class="live-content">
-      Cargando...
-    </div>
-  `;
-
-    loadGalleryItems(
-    `${UPLOAD_ENDPOINT}?action=section&sectionId=${sectionId}`,
-    false
-  );
-
-}
-
-async function loadGalleryItems(url, showInfo = true) {
-
+function renderGalleryItems(items, showInfo = true) {
   const container = document.getElementById("liveContent");
+  if (!container) return;
 
-  container.textContent = "Cargando recuerdos...";
-
-  try {
-
-    const response = await fetch(url);
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error("No fue posible obtener la galería.");
-    }
-
-    if (!result.items.length) {
-
-      container.innerHTML = `
-        <div class="live-empty">
-          Aún no hay recuerdos compartidos.
-        </div>
-      `;
-
-      return;
-
-    }
-    liveItems = result.items;
-    const items = result.items || [];
-
-container.innerHTML = items
-  .map((item, index) => `
+  container.innerHTML = items.map((item, index) => `
     <article
-      class="live-card"
-      onclick="openViewer(${index})"
+      class="live-card ${item.likedByMe ? "liked-by-me" : ""}"
+      data-gallery-index="${index}"
+      onclick="handleGalleryTap(event, ${index})"
     >
-
       <div class="live-media">
-
         <img
           class="live-thumbnail"
           src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
@@ -768,299 +595,276 @@ container.innerHTML = items
           : ""
         }
 
+        <div class="live-like-count" aria-label="Likes">
+          ❤️ ${Number(item.likes || 0)}
+        </div>
       </div>
 
-            ${showInfo ? `
-  <div class="live-card-info">
-    <div class="live-time">
-      ${formatRelativeTime(item.uploadedAt)}
-    </div>
-  </div>
-` : ""}
+      ${showInfo ? `
+        <div class="live-card-info">
+          <div class="live-time">${formatRelativeTime(item.uploadedAt)}</div>
+        </div>
+      ` : ""}
     </article>
-  `)
-  .join("");
+  `).join("");
 
-  } catch (error) {
+  refreshPendingVideoThumbnails(container);
+}
 
-    container.innerHTML = `
-      <div class="live-error">
-        Error al cargar la galería.
+function showGalleryMode(mode) {
+  const buttons = document.querySelectorAll(".gallery-switch-button");
+  buttons.forEach(button => button.classList.remove("active"));
+
+  const galleryBody = document.getElementById("galleryBody");
+
+  if (mode === "live") {
+    buttons[0]?.classList.add("active");
+    galleryBody.innerHTML = `
+      <div class="live-heading">
+        <h2>Recientes</h2>
+        <p>Últimos recuerdos compartidos</p>
       </div>
+      <div class="gallery-sort" aria-label="Ordenar galería">
+        <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
+        <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
+      </div>
+      <div id="liveContent" class="live-content">Cargando recuerdos...</div>
     `;
-
-    console.error(error);
-
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent");
+    return;
   }
 
+  buttons[1]?.classList.add("active");
+  galleryBody.innerHTML = `
+    <div class="gallery-sections-heading">
+      <h2>Explorar por sección</h2>
+      <p>Elige una parte del evento para ver sus recuerdos.</p>
+    </div>
+    <div id="gallerySectionsList" class="gallery-sections-list">Cargando secciones...</div>
+  `;
+  loadGallerySections();
 }
-function getSectionName(sectionId) {
 
-  const section = AppState.event.sections.find(
-    s => s.id === sectionId
+async function loadGallerySections() {
+  const container = document.getElementById("gallerySectionsList");
+
+  try {
+    const response = await fetch(`${UPLOAD_ENDPOINT}?action=sections`);
+    const result = await response.json();
+
+    if (!result.success) throw new Error("No fue posible cargar las secciones.");
+
+    container.innerHTML = result.sections.map(section => `
+      <button
+        class="gallery-section-card"
+        onclick="openGallerySection('${section.id}')"
+      >
+        <div class="gallery-section-cover">
+          ${section.coverFileId
+            ? `<img src="https://drive.google.com/thumbnail?id=${section.coverFileId}&sz=w800" alt="" loading="lazy">`
+            : `<div class="gallery-section-placeholder">${section.icon}</div>`
+          }
+        </div>
+        <div class="gallery-section-info">
+          <div class="gallery-section-title">
+            <img class="gallery-section-icon" src="assets/images/sections/${section.id}.svg" alt="">
+            <span>${section.id === "general" ? "General" : section.name}</span>
+          </div>
+          <div class="gallery-section-count">
+            ${section.count} ${section.count === 1 ? "recuerdo" : "recuerdos"}
+          </div>
+        </div>
+      </button>
+    `).join("");
+
+    refreshPendingVideoThumbnails(container);
+  } catch (error) {
+    container.innerHTML = `<div class="live-error">Error al cargar las secciones.</div>`;
+    console.error(error);
+  }
+}
+
+function openGallerySection(sectionId) {
+  const galleryBody = document.getElementById("galleryBody");
+
+  galleryBody.innerHTML = `
+    <div class="live-heading">
+      <h2>${getSectionName(sectionId)}</h2>
+      <p>Recuerdos de esta sección</p>
+    </div>
+    <div class="gallery-sort" aria-label="Ordenar galería">
+      <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
+      <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
+    </div>
+    <div id="liveContent" class="live-content">Cargando...</div>
+  `;
+
+  loadGalleryItems(
+    `${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`,
+    false,
+    "recent"
   );
+}
 
-  return section
-    ? `${section.icon} ${section.name}`
-    : sectionId;
+async function loadGalleryItems(url, showInfo = true, sort = "recent") {
+  const container = document.getElementById("liveContent");
+  if (!container) return;
 
+  container.textContent = "Cargando recuerdos...";
+  galleryContext = { url, showInfo, sort };
+
+  try {
+    const separator = url.includes("?") ? "&" : "?";
+    const optionalIdentity = AppState?.security?.user?.id
+      ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
+      : "";
+    const response = await fetch(`${url}${separator}sort=${encodeURIComponent(sort)}${optionalIdentity}&_=${Date.now()}`);
+    const result = await response.json();
+
+    if (!result.success) throw new Error("No fue posible obtener la galería.");
+
+    const items = (result.items || []).map(normalizeGalleryItem);
+
+    if (!items.length) {
+      liveItems = [];
+      container.innerHTML = `<div class="live-empty">Aún no hay recuerdos compartidos.</div>`;
+      return;
+    }
+
+    liveItems = sortGalleryItems(items, sort);
+    renderGalleryItems(liveItems, showInfo);
+    renderGallerySort(sort);
+  } catch (error) {
+    container.innerHTML = `<div class="live-error">Error al cargar la galería.</div>`;
+    console.error(error);
+  }
+}
+
+function getSectionName(sectionId) {
+  const section = AppState.event.sections.find(s => s.id === sectionId);
+  return section ? `${section.icon} ${section.name}` : sectionId;
 }
 
 function formatRelativeTime(dateString) {
-
-  const seconds = Math.floor(
-    (Date.now() - new Date(dateString).getTime()) / 1000
-  );
-
+  const seconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
   if (seconds < 60) return "Hace unos segundos";
-
   const minutes = Math.floor(seconds / 60);
-
   if (minutes < 60) return `Hace ${minutes} min`;
-
   const hours = Math.floor(minutes / 60);
-
   if (hours < 24) return `Hace ${hours} h`;
-
   const days = Math.floor(hours / 24);
-
   if (days === 1) return "Ayer";
-
   return new Date(dateString).toLocaleDateString();
 }
 
-function updateMineDeleteBar() {
-  const deleteBar = document.getElementById("mineDeleteBar");
-  const deleteButton = deleteBar?.querySelector(".mine-delete-button");
-
-  if (!deleteBar || !deleteButton) {
-    return;
-  }
-
-  const selectedCount = selectedMineItems.size;
-
-  deleteBar.style.display =
-    mineSelectionMode && selectedCount > 0
-      ? "block"
-      : "none";
-
-  deleteButton.textContent = `Eliminar (${selectedCount})`;
-}
-
-function toggleMineSelection(event, fileId, itemIndex) {
-  event.stopPropagation();
-
-  if (!mineSelectionMode) {
-    openViewer(itemIndex);
-    return;
-  }
-
-  if (selectedMineItems.has(fileId)) {
-    selectedMineItems.delete(fileId);
-  } else {
-    selectedMineItems.add(fileId);
-  }
-
-  const checkbox = document.getElementById(
-    `mineCheckbox-${fileId}`
-  );
-
-  if (checkbox) {
-    checkbox.checked = selectedMineItems.has(fileId);
-  }
-
-  updateMineDeleteBar();
-}
-
-async function toggleMineSelectionMode() {
-  mineSelectionMode = !mineSelectionMode;
-  selectedMineItems.clear();
-
-  const button = document.getElementById("mineSelectButton");
-
-  if (button) {
-    button.textContent = mineSelectionMode
-      ? "Cancelar"
-      : "Seleccionar para borrar";
-  }
-
-  await loadMineGrouped();
-  updateMineDeleteBar();
-}
-
-async function deleteSelectedMineItems() {
-  const fileIds = [...selectedMineItems];
-
-  if (!fileIds.length) {
-    return;
-  }
-
-  const confirmed = window.confirm(
-    fileIds.length === 1
-      ? "¿Eliminar este recuerdo? Esta acción no se puede deshacer."
-      : `¿Eliminar los ${fileIds.length} recuerdos seleccionados? Esta acción no se puede deshacer.`
-  );
-
-  if (!confirmed) {
-    return;
-  }
-
-  const deleteButton = document.querySelector(
-    ".mine-delete-button"
-  );
-
-  if (deleteButton) {
-    deleteButton.disabled = true;
-    deleteButton.textContent = "Eliminando...";
-  }
-
-  try {
-    for (const fileId of fileIds) {
-      const response = await fetch(UPLOAD_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "delete",
-          fileId,
-          ...requireGoogleIdentity()
-        })
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(
-          result.error || "No fue posible eliminar uno de los archivos."
-        );
-      }
-    }
-
-    selectedMineItems.clear();
-    mineSelectionMode = false;
-
-    const selectButton = document.getElementById(
-      "mineSelectButton"
-    );
-
-    if (selectButton) {
-      selectButton.textContent = "Seleccionar para borrar";
-    }
-
-    renderMine();
-
-  } catch (error) {
-    console.error(error);
-    window.alert(
-      error.message || "No fue posible completar la eliminación."
-    );
-
-    if (deleteButton) {
-      deleteButton.disabled = false;
-    }
-
-    updateMineDeleteBar();
-  }
-}
 
 function createViewerMedia(item) {
   if (item.mimeType.startsWith("video/")) {
     return `
-      <iframe
-        class="media-viewer-video"
-        src="https://drive.google.com/file/d/${item.fileId}/preview"
-        allow="autoplay; fullscreen"
-        allowfullscreen
-      ></iframe>
+      <div class="media-viewer-media-wrap">
+        <iframe
+          class="media-viewer-video"
+          src="https://drive.google.com/file/d/${item.fileId}/preview"
+          allow="autoplay; fullscreen"
+          allowfullscreen
+        ></iframe>
+        <div class="media-viewer-like-count">❤️ ${Number(item.likes || 0)}</div>
+      </div>
     `;
   }
 
   return `
-    <img
-      class="media-viewer-image"
-      src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-      alt=""
-    >
+    <div class="media-viewer-media-wrap" ondblclick="handleViewerDoubleTap(event)">
+      <img
+        class="media-viewer-image"
+        src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
+        alt=""
+      >
+      <div class="media-viewer-heart-hint">Doble toque para ❤️</div>
+      <div class="media-viewer-like-count">❤️ ${Number(item.likes || 0)}</div>
+    </div>
   `;
+}
+
+function handleViewerDoubleTap(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (currentViewerIndex < 0) return;
+
+  const heart = document.createElement("div");
+  heart.className = "viewer-like-animation";
+  heart.textContent = "♥";
+  document.querySelector(".media-viewer")?.appendChild(heart);
+  window.setTimeout(() => heart.remove(), 850);
+  toggleLike(currentViewerIndex);
 }
 
 function openViewer(index) {
   currentViewerIndex = index;
-
   const item = liveItems[currentViewerIndex];
+  if (!item) return;
 
   const viewer = document.createElement("div");
-
   viewer.className = "media-viewer";
-
-  const mediaContent = createViewerMedia(item);
 
   viewer.innerHTML = `
     <button
       class="media-viewer-close"
       onclick="closeViewer()"
       aria-label="Cerrar visor"
-    >
-      ×
-    </button>
+    >×</button>
 
     <button
       class="media-viewer-arrow media-viewer-prev"
       onclick="showPreviousItem()"
       aria-label="Anterior"
-    >
-      ‹
-    </button>
+    >‹</button>
 
-    ${mediaContent}
+    ${createViewerMedia(item)}
 
     <button
       class="media-viewer-arrow media-viewer-next"
       onclick="showNextItem()"
       aria-label="Siguiente"
-    >
-      ›
-    </button>
+    >›</button>
   `;
 
   document.body.appendChild(viewer);
 }
 
 function showPreviousItem() {
+  if (!liveItems.length) return;
   currentViewerIndex =
     (currentViewerIndex - 1 + liveItems.length) % liveItems.length;
-
   updateViewerMedia();
 }
 
 function showNextItem() {
+  if (!liveItems.length) return;
   currentViewerIndex =
     (currentViewerIndex + 1) % liveItems.length;
-
   updateViewerMedia();
 }
 
 function updateViewerMedia() {
   const item = liveItems[currentViewerIndex];
-  const currentMedia = document.querySelector(
-    ".media-viewer-image, .media-viewer-video"
-  );
-
-  if (!currentMedia) {
-    return;
-  }
+  const currentWrap = document.querySelector(".media-viewer-media-wrap");
+  if (!item || !currentWrap) return;
 
   const wrapper = document.createElement("div");
   wrapper.innerHTML = createViewerMedia(item).trim();
+  currentWrap.replaceWith(wrapper.firstElementChild);
+}
 
-  currentMedia.replaceWith(wrapper.firstElementChild);
+function updateViewerLikeCount() {
+  const item = liveItems[currentViewerIndex];
+  const count = document.querySelector(".media-viewer-like-count");
+  if (item && count) count.textContent = `❤️ ${Number(item.likes || 0)}`;
 }
 
 function closeViewer() {
   const viewer = document.querySelector(".media-viewer");
-
-  if (viewer) {
-    viewer.remove();
-  }
-
+  if (viewer) viewer.remove();
   currentViewerIndex = -1;
 }
 
