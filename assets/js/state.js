@@ -3,7 +3,7 @@ const AppState = {
     app: {
     name: "Mis Recuerdos",
     shortName: "Recuerdos",
-    version: "1.0.10",
+    version: "1.0.11",
     author: "Mis Recuerdos",
     website: "",
     supportEmail: "misrecuerdos.app@gmail.com"
@@ -94,6 +94,16 @@ sections: [
         total: 0,
 
         currentFileName: "",
+
+        currentProgress: 0,
+
+        currentChunk: 0,
+
+        totalChunks: 0,
+
+        connection: "online",
+
+        fileStatuses: [],
 
         progress: 0,
 

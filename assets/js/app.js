@@ -70,6 +70,11 @@ function resetUploadState({ keepSection = false } = {}) {
   AppState.upload.current = 0;
   AppState.upload.total = 0;
   AppState.upload.currentFileName = "";
+  AppState.upload.currentProgress = 0;
+  AppState.upload.currentChunk = 0;
+  AppState.upload.totalChunks = 0;
+  AppState.upload.connection = "online";
+  AppState.upload.fileStatuses = [];
   AppState.upload.error = "";
 }
 
@@ -1237,9 +1242,13 @@ function renderUpload() {
               <div class="upload-progress-bar"></div>
 
               <div class="upload-progress-text">
-                ⏳ Subiendo<br><br>
+                ${AppState.upload.connection === "offline" ? "📡 Sin conexión" : AppState.upload.connection === "retrying" ? "🔄 Reintentando" : "⏳ Subiendo"}<br><br>
 
                 <strong>${AppState.upload.currentFileName}</strong><br><br>
+
+                <div class="upload-progress-track"><div class="upload-progress-fill" style="width:${AppState.upload.currentProgress || 0}%"></div></div>
+                <strong>${AppState.upload.currentProgress || 0}%</strong><br>
+                ${AppState.upload.totalChunks ? `${AppState.upload.currentChunk} de ${AppState.upload.totalChunks} lotes` : "Procesando archivo"}<br><br>
 
                 ${AppState.upload.current + 1}
                 de
@@ -1353,9 +1362,13 @@ ${AppState.upload.status === "uploading" ? `
  <div class="upload-progress-bar"></div>
 
 <div class="upload-progress-text">
-  ⏳ Subiendo<br><br>
+  ${AppState.upload.connection === "offline" ? "📡 Sin conexión" : AppState.upload.connection === "retrying" ? "🔄 Reintentando" : "⏳ Subiendo"}<br><br>
 
   <strong>${AppState.upload.currentFileName}</strong><br><br>
+
+  <div class="upload-progress-track"><div class="upload-progress-fill" style="width:${AppState.upload.currentProgress || 0}%"></div></div>
+  <strong>${AppState.upload.currentProgress || 0}%</strong><br>
+  ${AppState.upload.totalChunks ? `${AppState.upload.currentChunk} de ${AppState.upload.totalChunks} lotes` : "Procesando archivo"}<br><br>
 
   ${AppState.upload.current + 1}
   de
@@ -1365,6 +1378,26 @@ ${AppState.upload.status === "uploading" ? `
 
   </div>
 ` : ""}
+
+          ${AppState.upload.status === "error" ? `
+            <div class="upload-error-panel">
+              <strong>⚠️ La subida se detuvo</strong>
+              <p>${AppState.upload.error || "Ocurrió un problema durante la transmisión."}</p>
+              <p>Los archivos que ya terminaron correctamente no se volverán a subir.</p>
+              ${UI.button({
+                text: "Reintentar subida",
+                variant: "primary",
+                onClick: "uploadFiles()"
+              })}
+            </div>
+          ` : ""}
+
+          ${AppState.upload.status === "idle" && !navigator.onLine ? `
+            <div class="upload-error-panel">
+              <strong>📡 Sin conexión a Internet</strong>
+              <p>Puedes seleccionar tus archivos, pero la subida comenzará cuando vuelva la conexión.</p>
+            </div>
+          ` : ""}
 
           ${UI.filePicker({
             id: "uploadFilePicker",
@@ -1426,17 +1459,32 @@ async function handleFilesSelected(event) {
     ...uniqueNewFiles
   ];
 
+  AppState.upload.fileStatuses = [
+    ...AppState.upload.fileStatuses,
+    ...uniqueNewFiles.map(() => ({
+      status: "pending",
+      progress: 0,
+      currentChunk: 0,
+      totalChunks: 0,
+      error: ""
+    }))
+  ];
+
   AppState.upload.status = "idle";
   input.value = "";
   renderApp();
 }
+
 function removeSelectedFile(index) {
+  if (AppState.upload.status === "uploading") return;
   AppState.upload.files.splice(index, 1);
+  AppState.upload.fileStatuses.splice(index, 1);
   renderApp();
 }
 
-
 async function handleUploadAction() {
+  if (AppState.upload.status === "uploading") return;
+
   if (AppState.upload.files.length === 0) {
     document.getElementById("uploadFilePicker").click();
     return;
@@ -1444,43 +1492,288 @@ async function handleUploadAction() {
 
   await uploadFiles();
 }
+
+function waitForOnline() {
+  if (navigator.onLine) return Promise.resolve();
+
+  return new Promise(resolve => {
+    const onOnline = () => {
+      window.removeEventListener("online", onOnline);
+      resolve();
+    };
+    window.addEventListener("online", onOnline, { once: true });
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function uploadWithRetry(task, label) {
+  let attempt = 0;
+  const maxAttempts = 3;
+
+  while (true) {
+    try {
+      await waitForOnline();
+      AppState.upload.connection = "online";
+      renderApp();
+      return await task();
+    } catch (error) {
+      if (!navigator.onLine) {
+        AppState.upload.connection = "offline";
+        AppState.upload.error = "Se perdió la conexión. La subida quedó pausada y continuará cuando vuelva Internet.";
+        renderApp();
+        await waitForOnline();
+        continue;
+      }
+
+      attempt++;
+      if (attempt >= maxAttempts) throw error;
+
+      AppState.upload.connection = "retrying";
+      AppState.upload.error = `${label}. Reintentando (${attempt}/${maxAttempts - 1})...`;
+      renderApp();
+      await sleep(1200 * attempt);
+    }
+  }
+}
+
 async function uploadFiles() {
   AppState.upload.status = "uploading";
   AppState.upload.current = 0;
   AppState.upload.total = AppState.upload.files.length;
+  AppState.upload.error = "";
+  AppState.upload.connection = navigator.onLine ? "online" : "offline";
+
+  if (!Array.isArray(AppState.upload.fileStatuses) ||
+      AppState.upload.fileStatuses.length !== AppState.upload.files.length) {
+    AppState.upload.fileStatuses = AppState.upload.files.map(() => ({
+      status: "pending", progress: 0, currentChunk: 0, totalChunks: 0, error: ""
+    }));
+  }
 
   renderApp();
 
   try {
-    for (const file of AppState.upload.files) {
+    for (let index = 0; index < AppState.upload.files.length; index++) {
+      const file = AppState.upload.files[index];
+      const fileState = AppState.upload.fileStatuses[index];
+
+      if (fileState.status === "completed") {
+        AppState.upload.current++;
+        continue;
+      }
+
       AppState.upload.currentFileName = file.name;
+      fileState.status = "uploading";
+      fileState.error = "";
+      fileState.progress = Number(fileState.progress || 0);
+      AppState.upload.currentProgress = fileState.progress;
+      AppState.upload.currentChunk = fileState.currentChunk || 0;
+      AppState.upload.totalChunks = fileState.totalChunks || 0;
       renderApp();
 
-      const result = await uploadFile(file);
+      const result = await uploadWithRetry(
+        () => uploadFile(file, progress => {
+          fileState.progress = progress.percent;
+          fileState.currentChunk = progress.currentChunk || 0;
+          fileState.totalChunks = progress.totalChunks || 0;
+          AppState.upload.currentProgress = progress.percent;
+          AppState.upload.currentChunk = fileState.currentChunk;
+          AppState.upload.totalChunks = fileState.totalChunks;
+          AppState.upload.connection = "online";
+          renderApp();
+        }),
+        `No se pudo continuar ${file.name}`
+      );
 
       if (!result.success) {
         throw new Error(result.error || "Error al subir el archivo");
       }
 
+      fileState.status = "completed";
+      fileState.progress = 100;
+      AppState.upload.currentProgress = 100;
+      AppState.upload.currentChunk = fileState.totalChunks || 1;
       AppState.upload.current++;
+      AppState.upload.error = "";
       renderApp();
-
-      console.log(result);
     }
 
     AppState.upload.status = "done";
     AppState.upload.files = [];
-
+    AppState.upload.fileStatuses = [];
     renderApp();
 
   } catch (error) {
     console.error(error);
 
+    const failedIndex = AppState.upload.current;
+    if (AppState.upload.fileStatuses[failedIndex]) {
+      AppState.upload.fileStatuses[failedIndex].status = "error";
+      AppState.upload.fileStatuses[failedIndex].error = error.message;
+    }
+
     AppState.upload.status = "error";
     AppState.upload.error = error.message;
-
     renderApp();
   }
+}
+
+function resetUpload() {
+  resetUploadState();
+  goTo("sections");
+}
+
+async function readFileAsBase64(file) {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(reader.result.split(",")[1]);
+    };
+
+    reader.onerror = () => {
+      reject(new Error(`No se pudo leer ${file.name}`));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadFile(file, onProgress = () => {}) {
+  const CHUNK_SIZE = 5 * 1024 * 1024;
+
+  if (file.size > CHUNK_SIZE) {
+    return await uploadFileInChunks(file, onProgress);
+  }
+
+  onProgress({ percent: 0, currentChunk: 0, totalChunks: 1 });
+  const base64 = await readFileAsBase64(file);
+
+  const response = await uploadWithRetry(async () => fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      fileName: file.name,
+      mimeType: file.type,
+      base64,
+      sectionId: AppState.upload.section?.id || "general",
+      ...requireGoogleIdentity()
+    })
+  }), `Enviando ${file.name}`);
+
+  const result = await response.json();
+  if (result.success) onProgress({ percent: 100, currentChunk: 1, totalChunks: 1 });
+  return result;
+}
+
+async function uploadFileInChunks(file, onProgress = () => {}) {
+  const sectionId = AppState.upload.section?.id || "general";
+  const identity = requireGoogleIdentity();
+  const chunkSize = 5 * 1024 * 1024;
+  const totalChunks = Math.ceil(file.size / chunkSize);
+
+  onProgress({ percent: 0, currentChunk: 0, totalChunks });
+
+  const startResponse = await uploadWithRetry(() => fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "start",
+      fileName: file.name,
+      mimeType: file.type,
+      sectionId,
+      ...identity
+    })
+  }), `Preparando ${file.name}`);
+
+  const startResult = await startResponse.json();
+
+  if (!startResult.success || !startResult.uploadUrl) {
+    throw new Error(startResult.error || "Drive no devolvió la URL de subida");
+  }
+
+  let driveFileId = null;
+
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const startByte = chunkIndex * chunkSize;
+    const endByte = Math.min(startByte + chunkSize, file.size);
+    const chunk = file.slice(startByte, endByte);
+
+    let chunkResponse;
+
+    while (true) {
+      try {
+        await waitForOnline();
+        AppState.upload.connection = "online";
+        chunkResponse = await fetch(startResult.uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+            "Content-Range": `bytes ${startByte}-${endByte - 1}/${file.size}`
+          },
+          body: chunk
+        });
+        break;
+      } catch (error) {
+        if (!navigator.onLine) {
+          AppState.upload.connection = "offline";
+          AppState.upload.error = "Conexión perdida. Esperando Internet para continuar este lote...";
+          renderApp();
+          await waitForOnline();
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (chunkResponse.status === 308) {
+      const percent = Math.round((endByte / file.size) * 100);
+      onProgress({ percent, currentChunk: chunkIndex + 1, totalChunks });
+      continue;
+    }
+
+    if (!chunkResponse.ok) {
+      const errorText = await chunkResponse.text();
+      throw new Error(`Drive rechazó el lote ${chunkIndex + 1}: ${chunkResponse.status} ${errorText}`);
+    }
+
+    try {
+      const driveFile = await chunkResponse.json();
+      driveFileId = driveFile?.id || null;
+    } catch (error) {
+      console.warn("Drive completó la subida sin devolver JSON.", error);
+    }
+
+    onProgress({ percent: Math.round((endByte / file.size) * 100), currentChunk: chunkIndex + 1, totalChunks });
+  }
+
+  const confirmResponse = await uploadWithRetry(() => fetch(UPLOAD_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "confirm",
+      fileId: driveFileId,
+      storedFileName: startResult.storedFileName,
+      fileName: file.name,
+      mimeType: file.type,
+      sectionId,
+      ...identity
+    })
+  }), `Confirmando ${file.name}`);
+
+  const confirmResult = await confirmResponse.json();
+
+  if (!confirmResult.success) {
+    throw new Error(confirmResult.error || "No se pudo confirmar la subida");
+  }
+
+  onProgress({ percent: 100, currentChunk: totalChunks, totalChunks });
+
+  return {
+    success: true,
+    fileId: confirmResult.fileId || driveFileId,
+    storedFileName: confirmResult.storedFileName || startResult.storedFileName
+  };
 }
 
 function resetUpload() {
