@@ -6,6 +6,7 @@ let selectedMineItems = new Set();
 let mineSelectionMode = false;
 let currentViewerIndex = -1;
 let currentInfoTopic = null;
+let viewerCommentsRequestToken = 0;
 function requireGoogleIdentity() {
   const identity = getGoogleIdentity();
 
@@ -574,6 +575,122 @@ async function toggleLike(index) {
   }
 }
 
+function formatCommentDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+async function loadViewerComments(uuid) {
+  const container = document.getElementById("viewerCommentsList");
+  if (!container || !uuid) return;
+
+  const token = ++viewerCommentsRequestToken;
+  container.innerHTML = `<div class="viewer-comments-loading">Cargando comentarios…</div>`;
+
+  try {
+    const response = await fetch(
+      `${UPLOAD_ENDPOINT}?action=comments&uuid=${encodeURIComponent(uuid)}`
+    );
+    const result = await response.json();
+
+    if (token !== viewerCommentsRequestToken) return;
+    if (!result.success) throw new Error(result.error || "No fue posible cargar los comentarios.");
+
+    const comments = Array.isArray(result.comments) ? result.comments : [];
+    container.innerHTML = comments.length
+      ? comments.map(comment => `
+          <div class="viewer-comment">
+            <div class="viewer-comment-avatar">${escapeHtml((comment.guestName || "I").trim().charAt(0).toUpperCase())}</div>
+            <div class="viewer-comment-body">
+              <div class="viewer-comment-meta">
+                <strong>${escapeHtml(comment.guestName || "Invitado")}</strong>
+                <span>${escapeHtml(formatCommentDate(comment.commentedAt))}</span>
+              </div>
+              <div class="viewer-comment-text">${escapeHtml(comment.comment)}</div>
+            </div>
+          </div>
+        `).join("")
+      : `<div class="viewer-comments-empty">Sé el primero en comentar este recuerdo. 💬</div>`;
+
+    updateViewerCommentCount(comments.length);
+  } catch (error) {
+    console.error("Comentarios:", error);
+    if (token === viewerCommentsRequestToken) {
+      container.innerHTML = `<div class="viewer-comments-empty">No fue posible cargar los comentarios.</div>`;
+    }
+  }
+}
+
+function updateViewerCommentCount(count) {
+  const value = Number(count || 0);
+  const element = document.querySelector(".media-viewer-comment-count");
+  if (element) element.textContent = `💬 ${value}`;
+  const title = document.getElementById("viewerCommentsTitleCount");
+  if (title) title.textContent = `💬 ${value}`;
+}
+
+async function submitViewerComment(event) {
+  event.preventDefault();
+  const input = document.getElementById("viewerCommentInput");
+  const button = document.getElementById("viewerCommentSubmit");
+  const item = liveItems[currentViewerIndex];
+  const comment = String(input?.value || "").trim();
+
+  if (!item?.uuid || !comment) return;
+  if (comment.length > 500) {
+    window.alert("El comentario puede tener máximo 500 caracteres.");
+    return;
+  }
+
+  let identity;
+  try {
+    identity = requireGoogleIdentity();
+  } catch (error) {
+    return;
+  }
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Enviando…";
+  }
+
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "comment",
+        uuid: item.uuid,
+        comment,
+        ...identity
+      })
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || "No fue posible publicar el comentario.");
+    }
+
+    if (input) input.value = "";
+    item.comments = Number(result.comments ?? item.comments ?? 0);
+    updateViewerCommentCount(item.comments);
+    await loadViewerComments(item.uuid);
+  } catch (error) {
+    console.error("Comentario:", error);
+    window.alert(error.message || "No fue posible publicar el comentario.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Enviar";
+    }
+  }
+}
+
 function renderGalleryItems(items, showInfo = true) {
   const container = document.getElementById("liveContent");
   if (!container) return;
@@ -600,8 +717,9 @@ function renderGalleryItems(items, showInfo = true) {
           : ""
         }
 
-        <div class="live-like-count" aria-label="Likes">
-          ❤️ ${Number(item.likes || 0)}
+        <div class="live-social-counts" aria-label="Interacciones">
+          <span class="live-like-count">❤️ ${Number(item.likes || 0)}</span>
+          <span class="live-comment-count">💬 ${Number(item.comments || 0)}</span>
         </div>
       </div>
 
@@ -1053,29 +1171,33 @@ async function deleteSelectedMineItems() {
 
 
 function createViewerMedia(item) {
-  if (item.mimeType.startsWith("video/")) {
-    return `
-      <div class="media-viewer-media-wrap">
-        <iframe
-          class="media-viewer-video"
-          src="https://drive.google.com/file/d/${item.fileId}/preview"
-          allow="autoplay; fullscreen"
-          allowfullscreen
-        ></iframe>
-        <div class="media-viewer-like-count">❤️ ${Number(item.likes || 0)}</div>
-      </div>
-    `;
-  }
-
+  const isVideo = item.mimeType.startsWith("video/");
   return `
-    <div class="media-viewer-media-wrap" ondblclick="handleViewerDoubleTap(event)">
-      <img
-        class="media-viewer-image"
-        src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-        alt=""
-      >
-      <div class="media-viewer-heart-hint">Doble toque para ❤️</div>
-      <div class="media-viewer-like-count">❤️ ${Number(item.likes || 0)}</div>
+    <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
+      ${isVideo
+        ? `<iframe
+            class="media-viewer-video"
+            src="https://drive.google.com/file/d/${item.fileId}/preview"
+            allow="autoplay; fullscreen"
+            allowfullscreen
+          ></iframe>`
+        : `<img
+            class="media-viewer-image"
+            src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
+            alt=""
+          >`
+      }
+      <div class="media-viewer-actions">
+        <button
+          class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}"
+          type="button"
+          onclick="handleViewerLike(event)"
+          aria-label="Dar Like"
+          title="Dar Like"
+        >❤️ <span class="media-viewer-like-count-value">${Number(item.likes || 0)}</span></button>
+        <span class="media-viewer-comment-count">💬 ${Number(item.comments || 0)}</span>
+      </div>
+      ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
 }
@@ -1083,6 +1205,13 @@ function createViewerMedia(item) {
 function handleViewerDoubleTap(event) {
   event.preventDefault();
   event.stopPropagation();
+  if (currentViewerIndex < 0) return;
+  handleViewerLike(event);
+}
+
+function handleViewerLike(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
   if (currentViewerIndex < 0) return;
 
   const heart = document.createElement("div");
@@ -1114,7 +1243,32 @@ function openViewer(index) {
       aria-label="Anterior"
     >‹</button>
 
-    ${createViewerMedia(item)}
+    <div class="media-viewer-content">
+      <div id="viewerMediaContainer">
+        ${createViewerMedia(item)}
+      </div>
+
+      <section class="viewer-comments" aria-label="Comentarios">
+        <div class="viewer-comments-header">
+          <strong>Comentarios</strong>
+          <span id="viewerCommentsTitleCount">💬 ${Number(item.comments || 0)}</span>
+        </div>
+        <div id="viewerCommentsList" class="viewer-comments-list">
+          <div class="viewer-comments-loading">Cargando comentarios…</div>
+        </div>
+        <form class="viewer-comment-form" onsubmit="submitViewerComment(event)">
+          <input
+            id="viewerCommentInput"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+            placeholder="Escribe un comentario…"
+            aria-label="Escribe un comentario"
+          >
+          <button id="viewerCommentSubmit" type="submit">Enviar</button>
+        </form>
+      </section>
+    </div>
 
     <button
       class="media-viewer-arrow media-viewer-next"
@@ -1124,6 +1278,10 @@ function openViewer(index) {
   `;
 
   document.body.appendChild(viewer);
+  loadViewerComments(item.uuid);
+
+  const mediaWrap = viewer.querySelector(".media-viewer-media-wrap.is-image");
+  if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
 }
 
 function showPreviousItem() {
@@ -1148,15 +1306,24 @@ function updateViewerMedia() {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = createViewerMedia(item).trim();
   currentWrap.replaceWith(wrapper.firstElementChild);
+  loadViewerComments(item.uuid);
+  const titleCount = document.getElementById("viewerCommentsTitleCount");
+  if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
+
+  const mediaWrap = document.querySelector(".media-viewer-media-wrap.is-image");
+  if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
 }
 
 function updateViewerLikeCount() {
   const item = liveItems[currentViewerIndex];
-  const count = document.querySelector(".media-viewer-like-count");
-  if (item && count) count.textContent = `❤️ ${Number(item.likes || 0)}`;
+  const count = document.querySelector(".media-viewer-like-count-value");
+  if (item && count) count.textContent = Number(item.likes || 0);
+  const button = document.querySelector(".media-viewer-action-button");
+  if (button && item) button.classList.toggle("liked", Boolean(item.likedByMe));
 }
 
 function closeViewer() {
+  viewerCommentsRequestToken++;
   const viewer = document.querySelector(".media-viewer");
   if (viewer) viewer.remove();
   currentViewerIndex = -1;
