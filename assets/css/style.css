@@ -1724,3 +1724,36 @@ background-position: center;
     bottom: max(18px, env(safe-area-inset-bottom));
   }
 }
+
+/* v1.0.12 - progreso real de subida por lote */
+.upload-progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #eadfe6;
+  overflow: hidden;
+  margin: 10px 0 8px;
+}
+
+.upload-progress-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.upload-error-panel {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff4f4;
+  border: 1px solid #f0caca;
+  text-align: center;
+  color: #6d3030;
+}
+
+.upload-error-panel p {
+  margin: 8px 0;
+  line-height: 1.45;
+}
