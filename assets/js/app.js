@@ -855,8 +855,27 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent") {
     }
 
     liveItems = sortGalleryItems(items, sort);
+
+    const sharedUuid = getSharedRecallId();
+    if (sharedUuid && !liveItems.some(item => item.uuid === sharedUuid)) {
+      try {
+        const sharedItem = await fetchSharedRecall(sharedUuid);
+        if (sharedItem) liveItems.unshift(sharedItem);
+      } catch (sharedError) {
+        console.warn("No fue posible cargar el recuerdo compartido.", sharedError);
+      }
+    }
+
     renderGalleryItems(liveItems, showInfo);
     renderGallerySort(sort);
+
+    if (sharedUuid) {
+      const sharedIndex = liveItems.findIndex(item => item.uuid === sharedUuid);
+      if (sharedIndex >= 0) {
+        clearSharedRecallParam();
+        window.setTimeout(() => openViewer(sharedIndex), 120);
+      }
+    }
   } catch (error) {
     container.innerHTML = `<div class="live-error">Error al cargar la galería.</div>`;
     console.error(error);
@@ -1170,6 +1189,95 @@ async function deleteSelectedMineItems() {
 }
 
 
+function getSharedRecallId() {
+  try {
+    return String(new URLSearchParams(window.location.search).get("recuerdo") || "").trim();
+  } catch (error) {
+    return "";
+  }
+}
+
+function clearSharedRecallParam() {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("recuerdo");
+    window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+  } catch (error) {
+    console.warn("No fue posible limpiar el enlace compartido.", error);
+  }
+}
+
+async function fetchSharedRecall(uuid) {
+  if (!uuid) return null;
+
+  const identity = AppState?.security?.user?.id
+    ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
+    : "";
+
+  const response = await fetch(
+    `${UPLOAD_ENDPOINT}?action=item&uuid=${encodeURIComponent(uuid)}${identity}&_=${Date.now()}`
+  );
+  const result = await response.json();
+
+  if (!result.success || !result.item) return null;
+  return normalizeGalleryItem(result.item);
+}
+
+async function handleViewerShare(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  if (currentViewerIndex < 0) return;
+  const item = liveItems[currentViewerIndex];
+  if (!item?.uuid) return;
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("recuerdo", item.uuid);
+  const shareUrl = url.toString();
+  const eventName = AppState?.event?.name || "Mis Recuerdos";
+  const isVideo = String(item.mimeType || "").startsWith("video/");
+  const text = `Mira este ${isVideo ? "video" : "recuerdo"} de ${eventName} 💗`;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: eventName,
+        text,
+        url: shareUrl
+      });
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+      showShareFeedback("🔗 Enlace copiado");
+      return;
+    }
+
+    window.prompt("Copia este enlace para compartir el recuerdo:", shareUrl);
+  } catch (error) {
+    if (error?.name === "AbortError") return;
+    console.error("No fue posible compartir el recuerdo.", error);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      showShareFeedback("🔗 Enlace copiado");
+    } catch (clipboardError) {
+      window.prompt("Copia este enlace para compartir el recuerdo:", shareUrl);
+    }
+  }
+}
+
+function showShareFeedback(message) {
+  const viewer = document.querySelector(".media-viewer");
+  if (!viewer) return;
+
+  const feedback = document.createElement("div");
+  feedback.className = "media-viewer-share-feedback";
+  feedback.textContent = message;
+  viewer.appendChild(feedback);
+  window.setTimeout(() => feedback.remove(), 1800);
+}
+
 function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
   return `
@@ -1196,6 +1304,13 @@ function createViewerMedia(item) {
           title="Dar Like"
         >❤️ <span class="media-viewer-like-count-value">${Number(item.likes || 0)}</span></button>
         <span class="media-viewer-comment-count">💬 ${Number(item.comments || 0)}</span>
+        <button
+          class="media-viewer-share-button"
+          type="button"
+          onclick="handleViewerShare(event)"
+          aria-label="Compartir recuerdo"
+          title="Compartir recuerdo"
+        >📤 Compartir</button>
       </div>
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>

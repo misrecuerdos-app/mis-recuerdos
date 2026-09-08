@@ -3,7 +3,7 @@ const AppState = {
     app: {
     name: "Mis Recuerdos",
     shortName: "Recuerdos",
-    version: "1.0.13",
+    version: "1.0.14",
     author: "Mis Recuerdos",
     website: "",
     supportEmail: "misrecuerdos.app@gmail.com"
