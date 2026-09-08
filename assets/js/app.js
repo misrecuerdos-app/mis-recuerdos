@@ -1668,6 +1668,36 @@ async function uploadFile(file, onProgress = () => {}) {
   return result;
 }
 
+
+function uploadChunkWithProgress({ uploadUrl, file, chunk, startByte, endByte, chunkIndex, totalChunks, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const totalSize = file.size;
+
+    xhr.open("PUT", uploadUrl, true);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("Content-Range", `bytes ${startByte}-${endByte - 1}/${totalSize}`);
+
+    xhr.upload.onprogress = event => {
+      if (!event.lengthComputable) return;
+      const uploadedBytes = startByte + event.loaded;
+      const percent = Math.min(100, Math.round((uploadedBytes / totalSize) * 100));
+      onProgress({
+        percent,
+        currentChunk: chunkIndex + 1,
+        totalChunks
+      });
+    };
+
+    xhr.onload = () => resolve(xhr);
+    xhr.onerror = () => reject(new TypeError("No se pudo completar el envío del lote."));
+    xhr.onabort = () => reject(new Error("La subida del lote fue cancelada."));
+    xhr.ontimeout = () => reject(new Error("Tiempo de espera agotado al enviar el lote."));
+
+    xhr.send(chunk);
+  });
+}
+
 async function uploadFileInChunks(file, onProgress = () => {}) {
   const sectionId = AppState.upload.section?.id || "general";
   const identity = requireGoogleIdentity();
@@ -1706,13 +1736,15 @@ async function uploadFileInChunks(file, onProgress = () => {}) {
       try {
         await waitForOnline();
         AppState.upload.connection = "online";
-        chunkResponse = await fetch(startResult.uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-            "Content-Range": `bytes ${startByte}-${endByte - 1}/${file.size}`
-          },
-          body: chunk
+        chunkResponse = await uploadChunkWithProgress({
+          uploadUrl: startResult.uploadUrl,
+          file,
+          chunk,
+          startByte,
+          endByte,
+          chunkIndex,
+          totalChunks,
+          onProgress
         });
         break;
       } catch (error) {
@@ -1723,6 +1755,16 @@ async function uploadFileInChunks(file, onProgress = () => {}) {
           await waitForOnline();
           continue;
         }
+
+        // Si el último lote sí llegó a Drive pero el navegador bloqueó
+        // la respuesta por CORS, continuamos con la confirmación.
+        if (chunkIndex === totalChunks - 1 && error instanceof TypeError) {
+          console.warn("El último lote pudo haber sido recibido por Drive; continuando con confirmación.", error);
+          onProgress({ percent: 100, currentChunk: totalChunks, totalChunks });
+          chunkResponse = { status: 200, ok: true, responseText: "" };
+          break;
+        }
+
         throw error;
       }
     }
@@ -1734,13 +1776,16 @@ async function uploadFileInChunks(file, onProgress = () => {}) {
     }
 
     if (!chunkResponse.ok) {
-      const errorText = await chunkResponse.text();
+      const errorText = chunkResponse.responseText || "";
       throw new Error(`Drive rechazó el lote ${chunkIndex + 1}: ${chunkResponse.status} ${errorText}`);
     }
 
     try {
-      const driveFile = await chunkResponse.json();
-      driveFileId = driveFile?.id || null;
+      const text = chunkResponse.responseText || "";
+      if (text) {
+        const driveFile = JSON.parse(text);
+        driveFileId = driveFile?.id || null;
+      }
     } catch (error) {
       console.warn("Drive completó la subida sin devolver JSON.", error);
     }
@@ -1773,169 +1818,6 @@ async function uploadFileInChunks(file, onProgress = () => {}) {
     success: true,
     fileId: confirmResult.fileId || driveFileId,
     storedFileName: confirmResult.storedFileName || startResult.storedFileName
-  };
-}
-
-function resetUpload() {
-  resetUploadState();
-  goTo("sections");
-}
-async function readFileAsBase64(file) {
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      resolve(reader.result.split(",")[1]);
-    };
-
-    reader.onerror = () => {
-      reject(new Error(`No se pudo leer ${file.name}`));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-async function uploadFile(file) {
-  const CHUNK_SIZE = 5 * 1024 * 1024;
-
-  if (file.size > CHUNK_SIZE) {
-    return await uploadFileInChunks(file);
-  }
-
-  const base64 = await readFileAsBase64(file);
-
-  const response = await fetch(UPLOAD_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify({
-      fileName: file.name,
-      mimeType: file.type,
-      base64,
-      sectionId: AppState.upload.section?.id || "general",
-      ...requireGoogleIdentity()
-    })
-  });
-
-  return await response.json();
-}
-async function uploadFileInChunks(file) {
-  const sectionId = AppState.upload.section?.id || "general";
-  const identity = requireGoogleIdentity();
-
-  const startResponse = await fetch(UPLOAD_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "start",
-      fileName: file.name,
-      mimeType: file.type,
-      sectionId,
-      ...identity
-    })
-  });
-
-  const startResult = await startResponse.json();
-
-  if (!startResult.success || !startResult.uploadUrl) {
-    throw new Error(
-      startResult.error || "Drive no devolvió la URL de subida"
-    );
-  }
-
-  const chunkSize = 5 * 1024 * 1024;
-  const totalChunks = Math.ceil(file.size / chunkSize);
-  let driveFileId = null;
-
-  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-    const startByte = chunkIndex * chunkSize;
-    const endByte = Math.min(startByte + chunkSize, file.size);
-    const chunk = file.slice(startByte, endByte);
-
-    let chunkResponse;
-
-    try {
-      chunkResponse = await fetch(startResult.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-          "Content-Range":
-            `bytes ${startByte}-${endByte - 1}/${file.size}`
-        },
-        body: chunk
-      });
-    } catch (error) {
-      const isLastChunk = chunkIndex === totalChunks - 1;
-
-      /*
-       * Google Drive puede guardar correctamente el último bloque y aun así
-       * impedir que el navegador lea la respuesta 200 por CORS. En ese caso
-       * continuamos con la confirmación del Apps Script, que localiza el
-       * archivo por su nombre almacenado y lo registra en Google Sheets.
-       */
-      if (isLastChunk && error instanceof TypeError) {
-        console.warn(
-          "Drive recibió el último bloque, pero el navegador bloqueó la respuesta final. Confirmando con el servidor.",
-          error
-        );
-        break;
-      }
-
-      throw error;
-    }
-
-    if (chunkResponse.status === 308) {
-      console.log(
-        `Drive recibió bloque ${chunkIndex + 1} de ${totalChunks}`
-      );
-      continue;
-    }
-
-    if (!chunkResponse.ok) {
-      const errorText = await chunkResponse.text();
-
-      throw new Error(
-        `Drive rechazó el bloque ${chunkIndex + 1}: ` +
-        `${chunkResponse.status} ${errorText}`
-      );
-    }
-
-    try {
-      const driveFile = await chunkResponse.json();
-      driveFileId = driveFile?.id || null;
-    } catch (error) {
-      console.warn(
-        "Drive completó la subida sin devolver JSON.",
-        error
-      );
-    }
-  }
-
-  const confirmResponse = await fetch(UPLOAD_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify({
-      action: "confirm",
-      fileId: driveFileId,
-      storedFileName: startResult.storedFileName,
-      fileName: file.name,
-      mimeType: file.type,
-      sectionId,
-      ...identity
-    })
-  });
-
-  const confirmResult = await confirmResponse.json();
-
-  if (!confirmResult.success) {
-    throw new Error(
-      confirmResult.error || "No se pudo confirmar la subida"
-    );
-  }
-
-  return {
-    success: true,
-    fileId: confirmResult.fileId || driveFileId,
-    storedFileName:
-      confirmResult.storedFileName ||
-      startResult.storedFileName
   };
 }
 
