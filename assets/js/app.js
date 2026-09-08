@@ -2103,4 +2103,10 @@ async function uploadFileInChunks(file, onProgress = () => {}) {
   };
 }
 
+// Si el usuario llegó mediante un enlace compartido, abrimos directamente la galería.
+// El parámetro ?recuerdo=UUID será procesado por loadGalleryItems() y abrirá el visor.
+if (getSharedRecallId()) {
+  AppState.navigation.currentPage = "live";
+}
+
 renderApp();
