@@ -371,77 +371,81 @@ function renderInfo() {
 let galleryContext = {
   url: "",
   showInfo: true,
-  sort: "recent"
+  sort: "recent",
+  mode: "recent"
 };
+
+const MOMENT_TYPES = [
+  { id: "funny", icon: "😂", name: "Gracioso" },
+  { id: "romance", icon: "❤️", name: "Romance" },
+  { id: "dance", icon: "💃", name: "Baile" },
+  { id: "party", icon: "🥳", name: "Fiesta" },
+  { id: "emotional", icon: "🥹", name: "Emotivo" },
+  { id: "gossip", icon: "🤫", name: "Chisme" },
+  { id: "special", icon: "⭐", name: "Especial" }
+];
 
 let galleryTapTimer = null;
 let galleryTapIndex = -1;
 let galleryTapAt = 0;
 
+function galleryTopMenu(active = "recent") {
+  return `
+    <div class="gallery-top-menu" aria-label="Explorar galería">
+      <button class="gallery-top-button ${active === "recent" ? "active" : ""}" onclick="showGalleryMode('recent')">🕒 Recientes</button>
+      <button class="gallery-top-button ${active === "trend" ? "active" : ""}" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
+      <button class="gallery-top-button ${active === "moments" ? "active" : ""}" onclick="showGalleryMode('moments')">✨ Momentos</button>
+    </div>
+  `;
+}
+
 function renderLive() {
   app.innerHTML = `
     <main class="app-shell gallery-shell">
-      ${UI.header({
-        title: "Galería",
-        back: "home"
-      })}
+      ${UI.header({ title: "Galería", back: "home" })}
       <section class="live-page">
-        <div class="gallery-switch">
-          <button
-            class="gallery-switch-button active"
-            onclick="showGalleryMode('live')"
-          >
-            🕒 Recientes
-          </button>
-          <button
-            class="gallery-switch-button"
-            onclick="showGalleryMode('sections')"
-          >
-            📂 Secciones
-          </button>
-        </div>
-        <div id="galleryBody">
-          <div class="live-heading">
-            <h2>Recientes</h2>
-            <p>Últimos recuerdos compartidos</p>
-          </div>
-          <div class="gallery-sort" aria-label="Ordenar galería">
-            <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
-            <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
-          </div>
-          <div id="liveContent" class="live-content">
-            Cargando recuerdos...
-          </div>
-        </div>
+        ${galleryTopMenu("recent")}
+        <div id="galleryBody"></div>
       </section>
       ${UI.bottomNav({ active: "live" })}
     </main>
   `;
-  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent");
+  showGalleryMode("recent");
 }
 
 function normalizeGalleryItem(item) {
   return {
     ...item,
     likes: Number(item.likes || 0),
-    likedByMe: Boolean(item.likedByMe)
+    views: Number(item.views || 0),
+    moments: Number(item.moments || 0),
+    momentTypes: Array.isArray(item.momentTypes) ? item.momentTypes : [],
+    likedByMe: Boolean(item.likedByMe),
+    momentByMe: Boolean(item.momentByMe)
   };
 }
 
 function sortGalleryItems(items, sort = "recent") {
   const normalized = items.map(normalizeGalleryItem);
-
-  if (sort === "likes") {
-    return normalized.sort((a, b) => {
-      const likesDiff = Number(b.likes || 0) - Number(a.likes || 0);
-      if (likesDiff !== 0) return likesDiff;
-      return new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+  if (sort === "views") {
+    return normalized.sort((a,b) => {
+      const diff = Number(b.views || 0) - Number(a.views || 0);
+      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
     });
   }
-
-  return normalized.sort((a, b) =>
-    new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime()
-  );
+  if (sort === "moments") {
+    return normalized.sort((a,b) => {
+      const diff = Number(b.moments || 0) - Number(a.moments || 0);
+      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+    });
+  }
+  if (sort === "likes") {
+    return normalized.sort((a,b) => {
+      const diff = Number(b.likes || 0) - Number(a.likes || 0);
+      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+    });
+  }
+  return normalized.sort((a,b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
 }
 
 function renderGallerySort(sort) {
@@ -451,29 +455,6 @@ function renderGallerySort(sort) {
       button.getAttribute("onclick")?.includes(`'${sort}'`)
     );
   });
-}
-
-function setGallerySort(sort) {
-  galleryContext.sort = sort;
-  renderGallerySort(sort);
-
-  // Al cambiar a "Más Likes" en la galería general, pedimos al backend
-  // el ranking completo, no solamente los 30 recuerdos más recientes.
-  if (galleryContext.url) {
-    loadGalleryItems(
-      galleryContext.url,
-      galleryContext.showInfo,
-      sort
-    );
-    return;
-  }
-
-  const container = document.getElementById("liveContent");
-  if (!container) return;
-
-  const items = sortGalleryItems(liveItems, sort);
-  liveItems = items;
-  renderGalleryItems(items, galleryContext.showInfo);
 }
 
 function handleGalleryTap(event, index) {
@@ -695,69 +676,140 @@ function renderGalleryItems(items, showInfo = true) {
   const container = document.getElementById("liveContent");
   if (!container) return;
 
-  container.innerHTML = items.map((item, index) => `
-    <article
-      class="live-card ${item.likedByMe ? "liked-by-me" : ""}"
-      data-gallery-index="${index}"
-      onclick="handleGalleryTap(event, ${index})"
-    >
-      <div class="live-media">
-        <img
-          class="live-thumbnail"
-          src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
-          alt=""
-          loading="lazy"
-          data-file-id="${item.fileId}"
-          data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}"
-          onerror="handleDriveThumbnailError(this)"
-        >
-
-        ${item.mimeType.startsWith("video/")
-          ? `<div class="live-play-icon">▶</div>`
-          : ""
-        }
-
-        <div class="live-social-counts" aria-label="Interacciones">
-          <span class="live-like-count">❤️ ${Number(item.likes || 0)}</span>
-          <span class="live-comment-count">💬 ${Number(item.comments || 0)}</span>
+  container.innerHTML = items.map((item) => {
+    const index = liveItems.findIndex(entry => entry.uuid === item.uuid);
+    const momentLabel = item.momentTypes?.map(typeId => {
+      const type = MOMENT_TYPES.find(t => t.id === typeId);
+      return type ? type.icon : "";
+    }).filter(Boolean).join(" ") || "";
+    return `
+      <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" onclick="handleGalleryTap(event, ${index})">
+        <div class="live-media">
+          <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800" alt="" loading="lazy" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onerror="handleDriveThumbnailError(this)">
+          ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
+          ${galleryContext.mode === "trend" ? `
+            <div class="trend-stats"><span>❤️ ${Number(item.likes || 0)}</span><span>👀 ${Number(item.views || 0)}</span></div>
+          ` : ""}
+          <div class="live-social-actions" aria-label="Acciones del recuerdo">
+            <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
+            <button type="button" class="live-action" onclick="handleCardComment(event, ${index})" title="Comentar">💬 <span>${Number(item.comments || 0)}</span></button>
+            <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Agregar un momento">✨</button>
+          </div>
+          ${momentLabel ? `<div class="live-moment-badge">${momentLabel}</div>` : ""}
         </div>
-      </div>
-
-      ${showInfo ? `
-        <div class="live-card-info">
-          <div class="live-time">${formatRelativeTime(item.uploadedAt)}</div>
-        </div>
-      ` : ""}
-    </article>
-  `).join("");
-
+        ${showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.uploadedAt)}</div></div>` : ""}
+      </article>
+    `;
+  }).join("");
   refreshPendingVideoThumbnails(container);
 }
 
+function handleCardLike(event, index) {
+  event.preventDefault(); event.stopPropagation();
+  toggleLike(index);
+}
+
+function handleCardComment(event, index) {
+  event.preventDefault(); event.stopPropagation();
+  openViewer(index);
+  setTimeout(() => document.getElementById("viewerCommentInput")?.focus(), 250);
+}
+
+function handleCardMoment(event, index) {
+  event.preventDefault(); event.stopPropagation();
+  openMomentPicker(index);
+}
+
+function openMomentPicker(index) {
+  const item = liveItems[index];
+  if (!item?.uuid) return;
+  document.querySelector(".moment-picker")?.remove();
+  const modal = document.createElement("div");
+  modal.className = "moment-picker";
+  modal.innerHTML = `
+    <div class="moment-picker-card" role="dialog" aria-modal="true">
+      <button class="moment-picker-close" onclick="this.closest('.moment-picker').remove()">×</button>
+      <h3>✨ ¿Qué momento es?</h3>
+      <p>Marca este recuerdo con una categoría.</p>
+      <div class="moment-picker-grid">
+        ${MOMENT_TYPES.map(type => `<button type="button" onclick="addMoment('${type.id}', ${index})">${type.icon}<span>${type.name}</span></button>`).join("")}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function addMoment(typeId, index) {
+  const item = liveItems[index];
+  const type = MOMENT_TYPES.find(t => t.id === typeId);
+  if (!item?.uuid || !type) return;
+  let identity;
+  try { identity = requireGoogleIdentity(); } catch (error) { return; }
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, { method: "POST", body: JSON.stringify({ action: "moment", uuid: item.uuid, momentType: typeId, ...identity }) });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible agregar el momento.");
+    item.moments = Number(result.moments || item.moments || 0);
+    item.momentByMe = true;
+    item.momentTypes = result.momentTypes || item.momentTypes || [typeId];
+    document.querySelector(".moment-picker")?.remove();
+    renderGalleryItems(liveItems, galleryContext.showInfo);
+  } catch (error) {
+    console.error("Momento:", error);
+    window.alert(error.message || "No fue posible agregar el momento.");
+  }
+}
+
 function showGalleryMode(mode) {
-  const buttons = document.querySelectorAll(".gallery-switch-button");
-  buttons.forEach(button => button.classList.remove("active"));
-
   const galleryBody = document.getElementById("galleryBody");
+  if (!galleryBody) return;
 
-  if (mode === "live") {
-    buttons[0]?.classList.add("active");
+  document.querySelectorAll(".gallery-top-button").forEach(button => button.classList.remove("active"));
+  const activeButton = document.querySelector(`.gallery-top-button[onclick="showGalleryMode('${mode}')"]`);
+  activeButton?.classList.add("active");
+
+  if (mode === "trend") {
     galleryBody.innerHTML = `
       <div class="live-heading">
-        <h2>Recientes</h2>
-        <p>Últimos recuerdos compartidos</p>
+        <h2>🔥 Tendencia</h2>
+        <p>Los recuerdos que más se están viendo.</p>
       </div>
-      <div class="gallery-sort" aria-label="Ordenar galería">
-        <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
-        <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
-      </div>
-      <div id="liveContent" class="live-content">Cargando recuerdos...</div>
+      <div id="liveContent" class="live-content">Cargando tendencia...</div>
     `;
-    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent");
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "views", "trend");
     return;
   }
 
-  buttons[1]?.classList.add("active");
+  if (mode === "moments") {
+    galleryBody.innerHTML = `
+      <div class="live-heading">
+        <h2>✨ Momentos</h2>
+        <p>Recuerdos que alguien marcó como un momento especial.</p>
+      </div>
+      <div class="moment-filter-row">
+        <button class="moment-filter active" onclick="filterMomentType('')">Todos</button>
+        ${MOMENT_TYPES.map(type => `<button class="moment-filter" onclick="filterMomentType('${type.id}')">${type.icon} ${type.name}</button>`).join("")}
+      </div>
+      <div id="liveContent" class="live-content">Cargando momentos...</div>
+    `;
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=moments`, true, "moments", "moments");
+    return;
+  }
+
+  galleryBody.innerHTML = `
+    <div class="live-heading">
+      <h2>Recientes</h2>
+      <p>Últimos recuerdos compartidos.</p>
+    </div>
+    <button class="gallery-sections-link" onclick="showGallerySections()">📂 Explorar por sección</button>
+    <div id="liveContent" class="live-content">Cargando recuerdos...</div>
+  `;
+  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent", "recent");
+}
+
+function showGallerySections() {
+  const galleryBody = document.getElementById("galleryBody");
+  if (!galleryBody) return;
   galleryBody.innerHTML = `
     <div class="gallery-sections-heading">
       <h2>Explorar por sección</h2>
@@ -766,6 +818,22 @@ function showGalleryMode(mode) {
     <div id="gallerySectionsList" class="gallery-sections-list">Cargando secciones...</div>
   `;
   loadGallerySections();
+}
+
+function setGallerySort(sort) {
+  if (sort === "views") { showGalleryMode("trend"); return; }
+  galleryContext.sort = sort;
+  if (galleryContext.url) loadGalleryItems(galleryContext.url, galleryContext.showInfo, sort, galleryContext.mode);
+}
+
+function filterMomentType(typeId) {
+  document.querySelectorAll(".moment-filter").forEach(button => button.classList.toggle("active", (button.getAttribute("onclick") || "").includes(`'${typeId}'`)));
+  const container = document.getElementById("liveContent");
+  if (!container) return;
+  const filtered = typeId
+    ? liveItems.filter(item => (item.momentTypes || []).includes(typeId))
+    : liveItems;
+  renderGalleryItems(filtered, true);
 }
 
 async function loadGallerySections() {
@@ -809,32 +877,23 @@ async function loadGallerySections() {
 
 function openGallerySection(sectionId) {
   const galleryBody = document.getElementById("galleryBody");
-
   galleryBody.innerHTML = `
     <div class="live-heading">
       <h2>${getSectionName(sectionId)}</h2>
-      <p>Recuerdos de esta sección</p>
+      <p>Recuerdos de esta sección.</p>
     </div>
-    <div class="gallery-sort" aria-label="Ordenar galería">
-      <button class="gallery-sort-button active" onclick="setGallerySort('recent')">🕒 Más recientes</button>
-      <button class="gallery-sort-button" onclick="setGallerySort('likes')">❤️ Más Likes</button>
-    </div>
+    <button class="gallery-back-sections" onclick="showGallerySections()">← Volver a secciones</button>
     <div id="liveContent" class="live-content">Cargando...</div>
   `;
-
-  loadGalleryItems(
-    `${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`,
-    false,
-    "recent"
-  );
+  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`, false, "recent", "section");
 }
 
-async function loadGalleryItems(url, showInfo = true, sort = "recent") {
+async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "recent") {
   const container = document.getElementById("liveContent");
   if (!container) return;
 
   container.textContent = "Cargando recuerdos...";
-  galleryContext = { url, showInfo, sort };
+  galleryContext = { url, showInfo, sort, mode };
 
   try {
     const separator = url.includes("?") ? "&" : "?";
@@ -1393,6 +1452,7 @@ function openViewer(index) {
   `;
 
   document.body.appendChild(viewer);
+  recordViewerView(item);
   loadViewerComments(item.uuid);
 
   const mediaWrap = viewer.querySelector(".media-viewer-media-wrap.is-image");
@@ -1421,6 +1481,7 @@ function updateViewerMedia() {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = createViewerMedia(item).trim();
   currentWrap.replaceWith(wrapper.firstElementChild);
+  recordViewerView(item);
   loadViewerComments(item.uuid);
   const titleCount = document.getElementById("viewerCommentsTitleCount");
   if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
@@ -1435,6 +1496,21 @@ function updateViewerLikeCount() {
   if (item && count) count.textContent = Number(item.likes || 0);
   const button = document.querySelector(".media-viewer-action-button");
   if (button && item) button.classList.toggle("liked", Boolean(item.likedByMe));
+}
+
+async function recordViewerView(item) {
+  if (!item?.uuid) return;
+  const guestGoogleId = String(AppState?.security?.user?.id || "").trim();
+  if (!guestGoogleId) return;
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, { method: "POST", body: JSON.stringify({ action: "view", uuid: item.uuid, guestGoogleId }) });
+    const result = await response.json();
+    if (result.success) {
+      item.views = Number(result.views || item.views || 0);
+    }
+  } catch (error) {
+    console.warn("No fue posible registrar la vista.", error);
+  }
 }
 
 function closeViewer() {
