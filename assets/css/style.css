@@ -657,6 +657,65 @@ background-position: center;
 }
 /* ---------- EN VIVO ---------- */
 
+.gallery-top-menu {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: #f5edf3;
+}
+.gallery-top-button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 42px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #5f5368;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.gallery-top-button.active {
+  background: linear-gradient(90deg, #e2539b, #9b5cff);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(226,83,155,.20);
+}
+.gallery-sections-link, .gallery-back-sections {
+  border: 0;
+  border-radius: 999px;
+  background: #f2e8f0;
+  color: #5b4657;
+  padding: 9px 13px;
+  margin-bottom: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.moment-filter-row {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: -3px 0 15px;
+  padding-bottom: 2px;
+}
+.moment-filter-row::-webkit-scrollbar { display:none; }
+.moment-filter {
+  flex: 0 0 auto;
+  border: 1px solid #dfd2dc;
+  border-radius: 999px;
+  background: #fff;
+  color: #5f5368;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.moment-filter.active { background: var(--color-primary); border-color: var(--color-primary); color:#fff; }
+
+
 .live-page {
   padding: 18px;
 }
@@ -808,6 +867,69 @@ background-position: center;
 .live-media {
   position: relative;
 }
+
+.live-social-actions {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 7px;
+  display: flex;
+  gap: 5px;
+  z-index: 3;
+}
+.live-action {
+  min-width: 36px;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0,0,0,.66);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(5px);
+  cursor: pointer;
+}
+.live-action.liked, .live-action.moment-marked { background: rgba(166,45,85,.9); }
+.live-moment-badge {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.66);
+  color:#fff;
+  font-size: 12px;
+  pointer-events:none;
+}
+.trend-stats {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  display:flex;
+  gap:5px;
+  z-index:2;
+}
+.trend-stats span {
+  padding:5px 7px;
+  border-radius:999px;
+  background:rgba(0,0,0,.68);
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+}
+.moment-picker {
+  position: fixed; inset: 0; z-index: 12000; display:grid; place-items:center; padding:20px; background:rgba(0,0,0,.65);
+}
+.moment-picker-card {
+  position:relative; width:min(390px,100%); padding:24px; border-radius:20px; background:#fff; color:#2d2630; box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.moment-picker-card h3 { margin:0 0 5px; font-size:20px; }
+.moment-picker-card p { margin:0 0 17px; color:#7d7386; font-size:13px; }
+.moment-picker-close { position:absolute; top:10px; right:10px; width:34px; height:34px; border:0; border-radius:50%; background:#f1e9f0; font-size:22px; cursor:pointer; }
+.moment-picker-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+.moment-picker-grid button { min-height:58px; border:1px solid #eadfea; border-radius:14px; background:#fcf9fc; color:#4d3d4e; font-size:14px; font-weight:700; cursor:pointer; }
+.moment-picker-grid button span { display:block; margin-top:2px; font-size:12px; }
 
 .live-play-icon {
   position: absolute;
@@ -2090,4 +2212,22 @@ background-position: center;
   .viewer-comments-list {
     min-height: 0;
   }
+}
+
+
+/* v1.0.17 - visor móvil: comentarios debajo del recuerdo */
+@media (max-width: 760px) {
+  .media-viewer-content {
+    width:100%; height:100dvh; max-height:none; display:flex; flex-direction:column; overflow:hidden;
+  }
+  #viewerMediaContainer { flex:0 0 auto; width:100%; height:62dvh; min-height:0; overflow:hidden; }
+  #viewerMediaContainer .media-viewer-media-wrap { width:100%; height:100%; max-height:none; }
+  #viewerMediaContainer .media-viewer-video { width:100%; height:100%; max-height:none; border-radius:0; }
+  #viewerMediaContainer .media-viewer-image { width:100%; height:100%; max-height:none; object-fit:contain; border-radius:0; }
+  .viewer-comments { flex:1 1 auto; width:100%; height:auto; max-height:none; min-height:0; border-radius:16px 16px 0 0; overflow:hidden; }
+  .viewer-comments-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+}
+@media (max-width: 380px) {
+  .gallery-top-button { font-size:12px; padding:0 4px; }
+  #viewerMediaContainer { height:58dvh; }
 }
