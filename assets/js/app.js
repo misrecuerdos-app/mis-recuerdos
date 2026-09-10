@@ -404,13 +404,12 @@ function renderLive() {
     <main class="app-shell gallery-shell">
       ${UI.header({ title: "Galería", back: "home" })}
       <section class="live-page">
-        ${galleryTopMenu("recent")}
         <div id="galleryBody"></div>
       </section>
       ${UI.bottomNav({ active: "live" })}
     </main>
   `;
-  showGalleryMode("recent");
+  showGallerySections();
 }
 
 function normalizeGalleryItem(item) {
@@ -682,7 +681,7 @@ function renderGalleryItems(items, showInfo = true) {
     const index = liveItems.findIndex(entry => entry.uuid === item.uuid);
     let bottomInfo = "";
     if (galleryContext.mode === "trend") {
-      bottomInfo = `<div class="live-card-metrics"><span>❤️ ${Number(item.likes || 0)}</span><span>👀 ${Number(item.views || 0)}</span></div>`;
+      bottomInfo = `<div class="live-card-metrics"><span>👀 Vistas ${Number(item.views || 0)}</span></div>`;
     } else if (galleryContext.mode === "moments") {
       const icons = (item.momentTypes || []).map(typeId => {
         const type = MOMENT_TYPES.find(t => t.id === typeId);
@@ -836,8 +835,13 @@ function showGallerySections() {
   if (!galleryBody) return;
   galleryBody.innerHTML = `
     <div class="gallery-sections-heading">
-      <h2>Explorar por sección</h2>
-      <p>Elige una parte del evento para ver sus recuerdos.</p>
+      <h2>Explorar Galería</h2>
+      <p>Elige una sección del evento para ver sus recuerdos.</p>
+    </div>
+    <button class="gallery-recent-button" onclick="showGalleryMode('recent')">🕒 Ver los recuerdos más recientes</button>
+    <div class="gallery-secondary-modes" aria-label="Otras formas de explorar">
+      <button type="button" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
+      <button type="button" onclick="showGalleryMode('moments')">✨ Momentos</button>
     </div>
     <div id="gallerySectionsList" class="gallery-sections-list">Cargando secciones...</div>
   `;
@@ -1432,7 +1436,7 @@ function handleViewerLike(event) {
   toggleLike(currentViewerIndex);
 }
 
-function openViewer(index, openPanel = "comments") {
+function openViewer(index, openPanel = "none") {
   currentViewerIndex = index;
   const item = liveItems[currentViewerIndex];
   if (!item) return;

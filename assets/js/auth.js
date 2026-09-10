@@ -3,32 +3,12 @@ const Auth = {
   initialized: false,
 
   initialize() {
-    const session = localStorage.getItem("mis-recuerdos-session");
-    if (session) {
-      try {
-        const savedSession = JSON.parse(session);
-        const sessionIsCurrent = !savedSession.expiresAt ||
-          Number(savedSession.expiresAt) * 1000 > Date.now();
-
-        AppState.security.user = sessionIsCurrent
-          ? savedSession.user || null
-          : null;
-        AppState.security.isLoggedIn = Boolean(
-          sessionIsCurrent &&
-          savedSession.isLoggedIn &&
-          savedSession.user?.id &&
-          savedSession.user?.email
-        );
-
-        if (!AppState.security.isLoggedIn) {
-          localStorage.removeItem("mis-recuerdos-session");
-        }
-        console.log("Sesión restaurada", AppState.security.user?.email || "");
-      } catch (error) {
-        localStorage.removeItem("mis-recuerdos-session");
-      }
-    }
-    
+    // La sesión solo dura durante la visita actual a la app.
+    // Al abrir/re cargar la aplicación se solicita una nueva firma una sola vez.
+    // No se borra la sesión guardada: así no se pierde por una acción interna;
+    // simplemente no se restaura automáticamente al iniciar una nueva visita.
+    AppState.security.user = null;
+    AppState.security.isLoggedIn = false;
 
     if (!window.google?.accounts?.id) {
       setTimeout(() => this.initialize(), 200);
@@ -44,15 +24,22 @@ const Auth = {
       this.initialized = true;
       console.log("Google Identity listo");
     }
+
+    this.ensureEntryLogin();
   },
 
-  showLogin() {
+  ensureEntryLogin() {
+    if (AppState.security.isLoggedIn) return;
+    if (document.getElementById("google-login")) return;
+    this.showLogin(false);
+  },
+
+  showLogin(allowClose = true) {
     if (!window.google?.accounts?.id) {
       setTimeout(() => this.showLogin(), 200);
       return;
     }
 
-    this.initialize();
     document.getElementById("google-login")?.remove();
 
     const container = document.createElement("div");
@@ -62,7 +49,7 @@ const Auth = {
     const card = document.createElement("div");
     card.className = "google-login-card";
     card.innerHTML = `
-      <button class="google-login-close" onclick="document.getElementById('google-login')?.remove()" aria-label="Cerrar">×</button>
+      ${allowClose ? `<button class="google-login-close" onclick="document.getElementById('google-login')?.remove()" aria-label="Cerrar">×</button>` : ""}
       <h2>Inicia sesión</h2>
       <p>Elige la cuenta que identificará tus archivos.</p>
       <div id="google-login-button"></div>
@@ -146,13 +133,14 @@ const Auth = {
         JSON.stringify({
           isLoggedIn: true,
           user: AppState.security.user,
-          expiresAt: payload.exp || null
+          expiresAt: null
         })
       );
 
       document.getElementById("google-login")?.remove();
       closeSideMenu?.();
-      goTo("sections");
+      const targetPage = typeof getSharedRecallId === "function" && getSharedRecallId() ? "live" : "sections";
+      goTo(targetPage);
     } catch (error) {
       console.error("No se pudo leer la sesión de Google", error);
       alert("No fue posible iniciar sesión. Intenta nuevamente.");
