@@ -2249,3 +2249,140 @@ background-position: center;
   .viewer-comments.closed { display:none; }
   .media-viewer-content > .viewer-moments-panel { grid-column:auto; grid-row:auto; }
 }
+
+/* v1.0.19 - visor: el recuerdo siempre es la prioridad visual */
+.media-viewer-content {
+  width: min(1180px, 96vw);
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-items: stretch;
+}
+
+#viewerMediaContainer {
+  flex: 0 0 auto;
+  width: 100%;
+  height: min(82vh, 820px);
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#viewerMediaContainer .media-viewer-media-wrap {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+
+#viewerMediaContainer .media-viewer-image {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+#viewerMediaContainer .media-viewer-video {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+}
+
+.viewer-comments,
+.viewer-moments-panel {
+  order: 2;
+  width: 100%;
+  max-height: 38vh;
+  min-height: 220px;
+  flex: 0 0 auto;
+}
+
+.viewer-comments.closed,
+.viewer-moments-panel:not(.open) { display:none; }
+
+/* v1.0.19 - acciones de las tarjetas: centradas y separadas del play */
+.live-social-actions {
+  left: 50%;
+  right: auto;
+  bottom: 12px;
+  transform: translateX(-50%);
+  justify-content: center;
+  width: auto;
+}
+
+/* v1.0.19 - navegación inicial de Galería */
+.gallery-recent-button {
+  display: block;
+  width: 100%;
+  margin: 12px 0 10px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--color-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+}
+
+.gallery-secondary-modes {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.gallery-secondary-modes button {
+  border: 1px solid #eadfea;
+  background: #fff;
+  color: #6b5d70;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.live-card-metrics { justify-content: flex-start; }
+
+@media (max-width: 760px) {
+  .media-viewer-content {
+    width: 100%;
+    height: 100dvh;
+    max-height: none;
+    gap: 0;
+    overflow-y: auto;
+  }
+
+  #viewerMediaContainer {
+    flex: 0 0 76dvh;
+    height: 76dvh;
+    width: 100%;
+  }
+
+  #viewerMediaContainer .media-viewer-image,
+  #viewerMediaContainer .media-viewer-video {
+    border-radius: 0;
+  }
+
+  .viewer-comments,
+  .viewer-moments-panel {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 280px;
+    max-height: none;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .gallery-secondary-modes { margin-bottom: 14px; }
+}
