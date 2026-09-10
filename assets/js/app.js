@@ -427,10 +427,12 @@ function normalizeGalleryItem(item) {
 
 function sortGalleryItems(items, sort = "recent") {
   const normalized = items.map(normalizeGalleryItem);
-  if (sort === "views") {
+  if (sort === "views" || sort === "trend") {
     return normalized.sort((a,b) => {
-      const diff = Number(b.views || 0) - Number(a.views || 0);
-      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+      const likesDiff = Number(b.likes || 0) - Number(a.likes || 0);
+      if (likesDiff !== 0) return likesDiff;
+      const viewsDiff = Number(b.views || 0) - Number(a.views || 0);
+      return viewsDiff !== 0 ? viewsDiff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
     });
   }
   if (sort === "moments") {
@@ -678,26 +680,31 @@ function renderGalleryItems(items, showInfo = true) {
 
   container.innerHTML = items.map((item) => {
     const index = liveItems.findIndex(entry => entry.uuid === item.uuid);
-    const momentLabel = item.momentTypes?.map(typeId => {
-      const type = MOMENT_TYPES.find(t => t.id === typeId);
-      return type ? type.icon : "";
-    }).filter(Boolean).join(" ") || "";
+    let bottomInfo = "";
+    if (galleryContext.mode === "trend") {
+      bottomInfo = `<div class="live-card-metrics"><span>❤️ ${Number(item.likes || 0)}</span><span>👀 ${Number(item.views || 0)}</span></div>`;
+    } else if (galleryContext.mode === "moments") {
+      const icons = (item.momentTypes || []).map(typeId => {
+        const type = MOMENT_TYPES.find(t => t.id === typeId);
+        return type ? type.icon : "";
+      }).filter(Boolean).join(" ");
+      bottomInfo = `<div class="live-card-metrics"><span>✨ ${Number(item.moments || 0)}</span>${icons ? `<span>${icons}</span>` : ""}</div>`;
+    } else {
+      bottomInfo = showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.uploadedAt)}</div></div>` : "";
+    }
+
     return `
       <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" onclick="handleGalleryTap(event, ${index})">
         <div class="live-media">
           <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800" alt="" loading="lazy" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onerror="handleDriveThumbnailError(this)">
           ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
-          ${galleryContext.mode === "trend" ? `
-            <div class="trend-stats"><span>❤️ ${Number(item.likes || 0)}</span><span>👀 ${Number(item.views || 0)}</span></div>
-          ` : ""}
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
             <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
             <button type="button" class="live-action" onclick="handleCardComment(event, ${index})" title="Comentar">💬 <span>${Number(item.comments || 0)}</span></button>
-            <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Agregar un momento">✨</button>
+            <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>
           </div>
-          ${momentLabel ? `<div class="live-moment-badge">${momentLabel}</div>` : ""}
         </div>
-        ${showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.uploadedAt)}</div></div>` : ""}
+        ${bottomInfo}
       </article>
     `;
   }).join("");
@@ -717,26 +724,22 @@ function handleCardComment(event, index) {
 
 function handleCardMoment(event, index) {
   event.preventDefault(); event.stopPropagation();
-  openMomentPicker(index);
+  openViewer(index, "moments");
+}
+
+function getMomentEntriesHtml(item) {
+  const entries = Array.isArray(item?.momentEntries) ? item.momentEntries : [];
+  if (!entries.length) return `<div class="viewer-moments-empty">Aún nadie ha marcado este recuerdo como Momento.</div>`;
+  return entries.map(entry => {
+    const type = MOMENT_TYPES.find(t => t.id === entry.momentType);
+    return `<div class="viewer-moment-entry"><span class="viewer-moment-entry-icon">${type?.icon || "✨"}</span><div><strong>${escapeHtml(entry.guestName || "Invitado")}</strong><span>${escapeHtml(type?.name || entry.momentType || "Momento")}</span></div></div>`;
+  }).join("");
 }
 
 function openMomentPicker(index) {
   const item = liveItems[index];
   if (!item?.uuid) return;
-  document.querySelector(".moment-picker")?.remove();
-  const modal = document.createElement("div");
-  modal.className = "moment-picker";
-  modal.innerHTML = `
-    <div class="moment-picker-card" role="dialog" aria-modal="true">
-      <button class="moment-picker-close" onclick="this.closest('.moment-picker').remove()">×</button>
-      <h3>✨ ¿Qué momento es?</h3>
-      <p>Marca este recuerdo con una categoría.</p>
-      <div class="moment-picker-grid">
-        ${MOMENT_TYPES.map(type => `<button type="button" onclick="addMoment('${type.id}', ${index})">${type.icon}<span>${type.name}</span></button>`).join("")}
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
+  openViewer(index, "moments");
 }
 
 async function addMoment(typeId, index) {
@@ -748,16 +751,34 @@ async function addMoment(typeId, index) {
   try {
     const response = await fetch(UPLOAD_ENDPOINT, { method: "POST", body: JSON.stringify({ action: "moment", uuid: item.uuid, momentType: typeId, ...identity }) });
     const result = await response.json();
-    if (!result.success) throw new Error(result.error || "No fue posible agregar el momento.");
-    item.moments = Number(result.moments || item.moments || 0);
+    if (!result.success) throw new Error(result.error || "No fue posible guardar el momento.");
+    item.moments = Number(result.moments || 0);
     item.momentByMe = true;
-    item.momentTypes = result.momentTypes || item.momentTypes || [typeId];
-    document.querySelector(".moment-picker")?.remove();
+    item.momentTypes = result.momentTypes || [];
+    item.momentEntries = result.momentEntries || [];
+    renderViewerMoments(item);
     renderGalleryItems(liveItems, galleryContext.showInfo);
   } catch (error) {
     console.error("Momento:", error);
-    window.alert(error.message || "No fue posible agregar el momento.");
+    window.alert(error.message || "No fue posible guardar el momento.");
   }
+}
+
+function renderViewerMoments(item) {
+  const panel = document.getElementById("viewerMomentsPanel");
+  if (!panel) return;
+  const myType = (item.momentEntries || []).find(entry => entry.guestGoogleId === AppState?.security?.user?.id)?.momentType || "";
+  panel.innerHTML = `
+    <div class="viewer-moments-header"><strong>✨ Momentos</strong><span>✨ ${Number(item.moments || 0)}</span><button type="button" onclick="closeViewerMoments()" aria-label="Cerrar momentos">×</button></div>
+    <div class="viewer-moment-picker-row">
+      ${MOMENT_TYPES.map(type => `<button type="button" class="${myType === type.id ? "selected" : ""}" onclick="addMoment('${type.id}', ${currentViewerIndex})">${type.icon}<span>${type.name}</span></button>`).join("")}
+    </div>
+    <div class="viewer-moments-list">${getMomentEntriesHtml(item)}</div>
+  `;
+}
+
+function closeViewerMoments() {
+  document.getElementById("viewerMomentsPanel")?.classList.remove("open");
 }
 
 function showGalleryMode(mode) {
@@ -776,7 +797,7 @@ function showGalleryMode(mode) {
       </div>
       <div id="liveContent" class="live-content">Cargando tendencia...</div>
     `;
-    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "views", "trend");
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "trend", "trend");
     return;
   }
 
@@ -786,9 +807,12 @@ function showGalleryMode(mode) {
         <h2>✨ Momentos</h2>
         <p>Recuerdos que alguien marcó como un momento especial.</p>
       </div>
-      <div class="moment-filter-row">
-        <button class="moment-filter active" onclick="filterMomentType('')">Todos</button>
-        ${MOMENT_TYPES.map(type => `<button class="moment-filter" onclick="filterMomentType('${type.id}')">${type.icon} ${type.name}</button>`).join("")}
+      <div class="moment-filter-control">
+        <button type="button" class="moment-filter-select" onclick="toggleMomentFilterMenu(event)">✨ Filtrar Momentos <span id="momentFilterLabel">Todos</span> ▾</button>
+        <div id="momentFilterMenu" class="moment-filter-menu" hidden>
+          <button type="button" class="active" onclick="filterMomentType('')">Todos</button>
+          ${MOMENT_TYPES.map(type => `<button type="button" onclick="filterMomentType('${type.id}')">${type.icon} ${type.name}</button>`).join("")}
+        </div>
       </div>
       <div id="liveContent" class="live-content">Cargando momentos...</div>
     `;
@@ -826,13 +850,25 @@ function setGallerySort(sort) {
   if (galleryContext.url) loadGalleryItems(galleryContext.url, galleryContext.showInfo, sort, galleryContext.mode);
 }
 
+function toggleMomentFilterMenu(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const menu = document.getElementById("momentFilterMenu");
+  if (menu) menu.hidden = !menu.hidden;
+}
+
 function filterMomentType(typeId) {
-  document.querySelectorAll(".moment-filter").forEach(button => button.classList.toggle("active", (button.getAttribute("onclick") || "").includes(`'${typeId}'`)));
+  const type = MOMENT_TYPES.find(t => t.id === typeId);
+  const label = document.getElementById("momentFilterLabel");
+  if (label) label.textContent = type ? `${type.icon} ${type.name}` : "Todos";
+  document.querySelectorAll("#momentFilterMenu button").forEach(button => button.classList.remove("active"));
+  const active = Array.from(document.querySelectorAll("#momentFilterMenu button")).find(button => (button.textContent || "").trim() === (type ? `${type.icon} ${type.name}` : "Todos"));
+  active?.classList.add("active");
+  const menu = document.getElementById("momentFilterMenu");
+  if (menu) menu.hidden = true;
   const container = document.getElementById("liveContent");
   if (!container) return;
-  const filtered = typeId
-    ? liveItems.filter(item => (item.momentTypes || []).includes(typeId))
-    : liveItems;
+  const filtered = typeId ? liveItems.filter(item => (item.momentTypes || []).includes(typeId)) : liveItems;
   renderGalleryItems(filtered, true);
 }
 
@@ -1362,7 +1398,7 @@ function createViewerMedia(item) {
           aria-label="Dar Like"
           title="Dar Like"
         >❤️ <span class="media-viewer-like-count-value">${Number(item.likes || 0)}</span></button>
-        <span class="media-viewer-comment-count">💬 ${Number(item.comments || 0)}</span>
+        <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
         <button
           class="media-viewer-share-button"
           type="button"
@@ -1396,7 +1432,7 @@ function handleViewerLike(event) {
   toggleLike(currentViewerIndex);
 }
 
-function openViewer(index) {
+function openViewer(index, openPanel = "comments") {
   currentViewerIndex = index;
   const item = liveItems[currentViewerIndex];
   if (!item) return;
@@ -1426,6 +1462,7 @@ function openViewer(index) {
         <div class="viewer-comments-header">
           <strong>Comentarios</strong>
           <span id="viewerCommentsTitleCount">💬 ${Number(item.comments || 0)}</span>
+          <button type="button" class="viewer-panel-close" onclick="closeViewerComments()" aria-label="Cerrar comentarios">×</button>
         </div>
         <div id="viewerCommentsList" class="viewer-comments-list">
           <div class="viewer-comments-loading">Cargando comentarios…</div>
@@ -1442,6 +1479,7 @@ function openViewer(index) {
           <button id="viewerCommentSubmit" type="submit">Enviar</button>
         </form>
       </section>
+      <section id="viewerMomentsPanel" class="viewer-moments-panel" aria-label="Momentos"></section>
     </div>
 
     <button
@@ -1454,9 +1492,22 @@ function openViewer(index) {
   document.body.appendChild(viewer);
   recordViewerView(item);
   loadViewerComments(item.uuid);
+  renderViewerMoments(item);
+  const commentsPanel = viewer.querySelector(".viewer-comments");
+  const momentsPanel = viewer.querySelector(".viewer-moments-panel");
+  if (openPanel === "moments") { commentsPanel?.classList.add("closed"); momentsPanel?.classList.add("open"); } else { momentsPanel?.classList.remove("open"); }
 
   const mediaWrap = viewer.querySelector(".media-viewer-media-wrap.is-image");
   if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
+}
+
+function closeViewerComments() {
+  document.querySelector(".viewer-comments")?.classList.add("closed");
+}
+
+function openViewerComments() {
+  document.querySelector(".viewer-comments")?.classList.remove("closed");
+  document.querySelector(".viewer-moments-panel")?.classList.remove("open");
 }
 
 function showPreviousItem() {
@@ -1483,6 +1534,7 @@ function updateViewerMedia() {
   currentWrap.replaceWith(wrapper.firstElementChild);
   recordViewerView(item);
   loadViewerComments(item.uuid);
+  renderViewerMoments(item);
   const titleCount = document.getElementById("viewerCommentsTitleCount");
   if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
 
