@@ -2401,3 +2401,28 @@ background-position: center;
 
   .gallery-secondary-modes { margin-bottom: 14px; }
 }
+
+/* v1.0.21 - Likes, edición de comentarios y video limpio */
+.viewer-likes-panel {
+  position: absolute;
+  left: 14px;
+  bottom: 70px;
+  z-index: 10;
+  width: min(300px, calc(100vw - 28px));
+  max-height: 42vh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(20, 16, 22, .94);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  backdrop-filter: blur(10px);
+}
+.viewer-likes-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.viewer-likes-header button { border:0; background:transparent; color:#fff; font-size:24px; cursor:pointer; }
+.viewer-likes-list { display:flex; flex-direction:column; gap:7px; font-size:14px; }
+.viewer-comment-edit-button { margin-top:6px; border:0; background:transparent; padding:0; color:#b23b68; font-size:12px; font-weight:700; cursor:pointer; }
+.viewer-comment-edit-input { width:100%; min-height:70px; box-sizing:border-box; resize:vertical; border:1px solid #ddd; border-radius:10px; padding:8px; font:inherit; }
+.viewer-comment-edit-actions { display:flex; gap:6px; margin-top:6px; }
+.viewer-comment-edit-actions button { border:0; border-radius:999px; padding:6px 10px; cursor:pointer; font-weight:700; }
+.media-viewer-video { object-fit:contain; }
