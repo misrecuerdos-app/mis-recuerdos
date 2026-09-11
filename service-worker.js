@@ -1,4 +1,4 @@
-const CACHE_NAME = "mis-recuerdos-xv-sofia-v1.0.21";
+const CACHE_NAME = "mis-recuerdos-xv-sofia-v1.0.22";
 const APP_SHELL = [
   "./",
   "./index.html",
