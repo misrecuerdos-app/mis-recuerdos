@@ -355,7 +355,7 @@ function renderInfo() {
           </div>
           <div class="info-feature-bullet">
             <span class="info-feature-icon">✨</span>
-            <p><strong>Momentos:</strong> convierte las fotos y videos que más significan en recuerdos especiales del evento. Cada invitado puede señalar una imagen como graciosa, romántica, emotiva, de baile, de fiesta, de chisme o simplemente especial, para que entre todos descubramos los momentos que vale la pena volver a vivir.</p>
+            <p><strong>Momentos:</strong> convierte las fotos y videos que más significan en recuerdos especiales del evento. Cada invitado puede señalar una imagen como graciosa, romántica, emotiva, de baile, de fiesta, de chisme, con Aura o simplemente especial, para que entre todos descubramos los momentos que vale la pena volver a vivir.</p>
           </div>
           <div class="info-index">
             <button onclick="openInfoTopic('about')"><span>Qué es Mis Recuerdos</span><b>›</b></button>
@@ -386,7 +386,8 @@ const MOMENT_TYPES = [
   { id: "party", icon: "🥳", name: "Fiesta" },
   { id: "emotional", icon: "🥹", name: "Emotivo" },
   { id: "gossip", icon: "🤫", name: "Chisme" },
-  { id: "special", icon: "⭐", name: "Especial" }
+  { id: "special", icon: "⭐", name: "Especial" },
+  { id: "aura", icon: "✨", name: "Aura" }
 ];
 
 let galleryTapTimer = null;
@@ -396,7 +397,7 @@ let galleryTapAt = 0;
 function galleryTopMenu(active = "recent") {
   return `
     <div class="gallery-top-menu" aria-label="Explorar galería">
-      <button class="gallery-top-button ${active === "recent" ? "active" : ""}" onclick="showGalleryMode('recent')">🕒 Recientes</button>
+      <button class="gallery-top-button ${active === "recent" ? "active" : ""}" onclick="showGalleryMode('recent')">🕒 Reciente</button>
       <button class="gallery-top-button ${active === "trend" ? "active" : ""}" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
       <button class="gallery-top-button ${active === "moments" ? "active" : ""}" onclick="showGalleryMode('moments')">✨ Momentos</button>
     </div>
@@ -424,7 +425,8 @@ function normalizeGalleryItem(item) {
     moments: Number(item.moments || 0),
     momentTypes: Array.isArray(item.momentTypes) ? item.momentTypes : [],
     likedByMe: Boolean(item.likedByMe),
-    momentByMe: Boolean(item.momentByMe)
+    momentByMe: Boolean(item.momentByMe),
+    activityAt: item.activityAt || item.uploadedAt
   };
 }
 
@@ -450,7 +452,7 @@ function sortGalleryItems(items, sort = "recent") {
       return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
     });
   }
-  return normalized.sort((a,b) => new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime());
+  return normalized.sort((a,b) => new Date(b.activityAt || b.uploadedAt || 0).getTime() - new Date(a.activityAt || a.uploadedAt || 0).getTime());
 }
 
 function renderGallerySort(sort) {
@@ -547,10 +549,14 @@ async function toggleLike(index) {
 
     item.likes = Number(result.likes ?? item.likes ?? 0);
     item.likedByMe = Boolean(result.likedByMe ?? result.liked);
+    if (item.likedByMe) item.activityAt = new Date().toISOString();
     updateViewerLikeCount();
 
     if (galleryContext.sort === "likes") {
       liveItems = sortGalleryItems(liveItems, "likes");
+      renderGalleryItems(liveItems, galleryContext.showInfo);
+    } else if (galleryContext.mode === "recent") {
+      liveItems = sortGalleryItems(liveItems, "recent");
       renderGalleryItems(liveItems, galleryContext.showInfo);
     } else {
       updateLikeIndicators();
@@ -598,7 +604,10 @@ async function loadViewerComments(uuid) {
                 <strong>${escapeHtml(comment.guestName || "Invitado")}</strong>
                 <span>${escapeHtml(formatCommentDate(comment.commentedAt))}</span>
               </div>
-              <div class="viewer-comment-text">${escapeHtml(comment.comment)}</div>
+              <div class="viewer-comment-text" id="viewer-comment-text-${comment.rowNumber}">${escapeHtml(comment.comment)}</div>
+              ${comment.guestGoogleId === String(AppState?.security?.user?.id || "") ? `
+                <button type="button" class="viewer-comment-edit-button" onclick="beginEditViewerComment(${comment.rowNumber})">Editar</button>
+              ` : ""}
             </div>
           </div>
         `).join("")
@@ -619,6 +628,42 @@ function updateViewerCommentCount(count) {
   if (element) element.textContent = `💬 ${value}`;
   const title = document.getElementById("viewerCommentsTitleCount");
   if (title) title.textContent = `💬 ${value}`;
+}
+
+async function beginEditViewerComment(rowNumber) {
+  const text = document.getElementById(`viewer-comment-text-${rowNumber}`);
+  if (!text) return;
+  const current = text.textContent || "";
+  text.innerHTML = `
+    <textarea class="viewer-comment-edit-input" maxlength="500">${escapeHtml(current)}</textarea>
+    <div class="viewer-comment-edit-actions">
+      <button type="button" onclick="saveEditedViewerComment(${rowNumber})">Guardar</button>
+      <button type="button" onclick="loadViewerComments(liveItems[currentViewerIndex]?.uuid)">Cancelar</button>
+    </div>
+  `;
+  text.querySelector("textarea")?.focus();
+}
+
+async function saveEditedViewerComment(rowNumber) {
+  const text = document.getElementById(`viewer-comment-text-${rowNumber}`);
+  const input = text?.querySelector("textarea");
+  const comment = String(input?.value || "").trim();
+  const item = liveItems[currentViewerIndex];
+  if (!item?.uuid || !comment) return;
+  if (comment.length > 500) return window.alert("El comentario puede tener máximo 500 caracteres.");
+  let identity;
+  try { identity = requireGoogleIdentity(); } catch (error) { return; }
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, { method: "POST", body: JSON.stringify({ action: "editComment", uuid: item.uuid, rowNumber, comment, ...identity }) });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible editar el comentario.");
+    item.comments = Number(result.comments ?? item.comments ?? 0);
+    item.activityAt = result.commentedAt || new Date().toISOString();
+    await loadViewerComments(item.uuid);
+  } catch (error) {
+    console.error("Editar comentario:", error);
+    window.alert(error.message || "No fue posible editar el comentario.");
+  }
 }
 
 async function submitViewerComment(event) {
@@ -664,6 +709,7 @@ async function submitViewerComment(event) {
 
     if (input) input.value = "";
     item.comments = Number(result.comments ?? item.comments ?? 0);
+    item.activityAt = new Date().toISOString();
     updateViewerCommentCount(item.comments);
     await loadViewerComments(item.uuid);
   } catch (error) {
@@ -702,7 +748,7 @@ function renderGalleryItems(items, showInfo = true) {
           <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800" alt="" loading="lazy" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onerror="handleDriveThumbnailError(this)">
           ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
-            <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
+            <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" oncontextmenu="handleCardLikeList(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
             <button type="button" class="live-action" onclick="handleCardComment(event, ${index})" title="Comentar">💬 <span>${Number(item.comments || 0)}</span></button>
             <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>
           </div>
@@ -756,9 +802,10 @@ async function addMoment(typeId, index) {
     const result = await response.json();
     if (!result.success) throw new Error(result.error || "No fue posible guardar el momento.");
     item.moments = Number(result.moments || 0);
-    item.momentByMe = true;
+    item.momentByMe = Boolean(result.momentByMe);
     item.momentTypes = result.momentTypes || [];
     item.momentEntries = result.momentEntries || [];
+    item.activityAt = result.activityAt || item.activityAt;
     renderViewerMoments(item);
     renderGalleryItems(liveItems, galleryContext.showInfo);
   } catch (error) {
@@ -831,8 +878,8 @@ function showGalleryMode(mode) {
 
   galleryBody.innerHTML = `
     <div class="live-heading">
-      <h2>Recientes</h2>
-      <p>Últimos recuerdos compartidos.</p>
+      <h2>Reciente</h2>
+      <p>Los recuerdos con actividad más reciente.</p>
     </div>
     <button class="gallery-sections-link" onclick="showGallerySections()">📂 Explorar por sección</button>
     <div id="liveContent" class="live-content">Cargando recuerdos...</div>
@@ -850,7 +897,7 @@ function showGallerySections() {
       <p>Elige una sección del evento para ver sus recuerdos.</p>
     </div>
     <div class="gallery-secondary-modes gallery-main-modes" aria-label="Formas de explorar">
-      <button type="button" onclick="showGalleryMode('recent')">Recientes</button>
+      <button type="button" onclick="showGalleryMode('recent')">Reciente</button>
       <button type="button" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
       <button type="button" onclick="showGalleryMode('moments')">✨ Momentos</button>
     </div>
@@ -1393,12 +1440,13 @@ function createViewerMedia(item) {
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
       ${isVideo
-        ? `<iframe
+        ? `<video
             class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview"
-            allow="autoplay; fullscreen"
-            allowfullscreen
-          ></iframe>`
+            src="https://drive.google.com/uc?export=download&id=${item.fileId}"
+            playsinline
+            preload="metadata"
+            onclick="handleViewerVideoTap(event)"
+          ></video>`
         : `<img
             class="media-viewer-image"
             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
@@ -1412,7 +1460,7 @@ function createViewerMedia(item) {
           onclick="handleViewerLike(event)"
           aria-label="Dar Like"
           title="Dar Like"
-        >❤️ <span class="media-viewer-like-count-value">${Number(item.likes || 0)}</span></button>
+        >❤️ <span class="media-viewer-like-count-value" onclick="event.stopPropagation(); showViewerLikes(event)">${Number(item.likes || 0)}</span></button>
         <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
         <button
           class="media-viewer-share-button"
@@ -1425,6 +1473,20 @@ function createViewerMedia(item) {
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
+}
+
+function handleViewerVideoTap(event) {
+  const video = event.currentTarget;
+  if (!video) return;
+  if (!video.controls) {
+    video.controls = true;
+    window.clearTimeout(video._hideControlsTimer);
+    video._hideControlsTimer = window.setTimeout(() => { video.controls = false; }, 3500);
+    if (video.paused) video.play().catch(() => {});
+  } else {
+    window.clearTimeout(video._hideControlsTimer);
+    video._hideControlsTimer = window.setTimeout(() => { video.controls = false; }, 3500);
+  }
 }
 
 function handleViewerDoubleTap(event) {
@@ -1555,6 +1617,27 @@ function updateViewerMedia() {
 
   const mediaWrap = document.querySelector(".media-viewer-media-wrap.is-image");
   if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
+}
+
+async function showViewerLikes(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const item = liveItems[currentViewerIndex];
+  if (!item?.uuid || !Number(item.likes || 0)) return;
+  try {
+    const response = await fetch(`${UPLOAD_ENDPOINT}?action=likes&uuid=${encodeURIComponent(item.uuid)}`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible cargar los Likes.");
+    const names = Array.isArray(result.likesBy) ? result.likesBy : [];
+    const viewer = document.querySelector(".media-viewer");
+    if (!viewer) return;
+    const existing = viewer.querySelector(".viewer-likes-panel");
+    if (existing) { existing.remove(); return; }
+    const panel = document.createElement("div");
+    panel.className = "viewer-likes-panel";
+    panel.innerHTML = `<div class="viewer-likes-header"><strong>❤️ Le dieron Like</strong><button type="button" onclick="this.closest('.viewer-likes-panel').remove()">×</button></div><div class="viewer-likes-list">${names.length ? names.map(name => `<div>❤️ ${escapeHtml(name)}</div>`).join("") : "<div>No fue posible identificar a los invitados.</div>"}</div>`;
+    viewer.appendChild(panel);
+  } catch (error) { window.alert(error.message || "No fue posible cargar los Likes."); }
 }
 
 function updateViewerLikeCount() {
