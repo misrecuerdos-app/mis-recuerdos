@@ -3,12 +3,34 @@ const Auth = {
   initialized: false,
 
   initialize() {
-    // La sesión solo dura durante la visita actual a la app.
-    // Al abrir/re cargar la aplicación se solicita una nueva firma una sola vez.
-    // No se borra la sesión guardada: así no se pierde por una acción interna;
-    // simplemente no se restaura automáticamente al iniciar una nueva visita.
-    AppState.security.user = null;
-    AppState.security.isLoggedIn = false;
+    // Si ya existe una sesión válida de esta app, se restaura también después
+    // de un refresh. La sesión solo se elimina mediante Cerrar sesión/Cambiar cuenta.
+    const session = localStorage.getItem("mis-recuerdos-session");
+    if (session) {
+      try {
+        const savedSession = JSON.parse(session);
+        const sessionIsCurrent = Boolean(
+          savedSession.isLoggedIn &&
+          savedSession.user?.id &&
+          savedSession.user?.email
+        );
+
+        AppState.security.user = sessionIsCurrent ? savedSession.user : null;
+        AppState.security.isLoggedIn = sessionIsCurrent;
+
+        if (!sessionIsCurrent) {
+          localStorage.removeItem("mis-recuerdos-session");
+        }
+        console.log("Sesión restaurada", AppState.security.user?.email || "");
+      } catch (error) {
+        localStorage.removeItem("mis-recuerdos-session");
+        AppState.security.user = null;
+        AppState.security.isLoggedIn = false;
+      }
+    } else {
+      AppState.security.user = null;
+      AppState.security.isLoggedIn = false;
+    }
 
     if (!window.google?.accounts?.id) {
       setTimeout(() => this.initialize(), 200);

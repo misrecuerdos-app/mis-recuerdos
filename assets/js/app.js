@@ -1440,13 +1440,13 @@ function createViewerMedia(item) {
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
       ${isVideo
-        ? `<video
+        ? `<iframe
             class="media-viewer-video"
-            src="https://drive.google.com/uc?export=download&id=${item.fileId}"
-            playsinline
-            preload="metadata"
-            onclick="handleViewerVideoTap(event)"
-          ></video>`
+            src="https://drive.google.com/file/d/${item.fileId}/preview"
+            allow="autoplay; fullscreen"
+            allowfullscreen
+            title="Video del recuerdo"
+          ></iframe>`
         : `<img
             class="media-viewer-image"
             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
@@ -1460,7 +1460,14 @@ function createViewerMedia(item) {
           onclick="handleViewerLike(event)"
           aria-label="Dar Like"
           title="Dar Like"
-        >❤️ <span class="media-viewer-like-count-value" onclick="event.stopPropagation(); showViewerLikes(event)">${Number(item.likes || 0)}</span></button>
+        >❤️</button>
+        <button
+          class="media-viewer-like-count"
+          type="button"
+          onclick="showViewerLikes(event)"
+          aria-label="Ver quién dio Like"
+          title="Ver quién dio Like"
+        >${Number(item.likes || 0)}</button>
         <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
         <button
           class="media-viewer-share-button"
@@ -1473,20 +1480,6 @@ function createViewerMedia(item) {
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
-}
-
-function handleViewerVideoTap(event) {
-  const video = event.currentTarget;
-  if (!video) return;
-  if (!video.controls) {
-    video.controls = true;
-    window.clearTimeout(video._hideControlsTimer);
-    video._hideControlsTimer = window.setTimeout(() => { video.controls = false; }, 3500);
-    if (video.paused) video.play().catch(() => {});
-  } else {
-    window.clearTimeout(video._hideControlsTimer);
-    video._hideControlsTimer = window.setTimeout(() => { video.controls = false; }, 3500);
-  }
 }
 
 function handleViewerDoubleTap(event) {
@@ -1535,7 +1528,7 @@ function openViewer(index, openPanel = "none") {
         ${createViewerMedia(item)}
       </div>
 
-      <section class="viewer-comments" aria-label="Comentarios">
+      <section class="viewer-comments closed" aria-label="Comentarios">
         <div class="viewer-comments-header">
           <strong>Comentarios</strong>
           <span id="viewerCommentsTitleCount">💬 ${Number(item.comments || 0)}</span>
@@ -1572,7 +1565,11 @@ function openViewer(index, openPanel = "none") {
   renderViewerMoments(item);
   const commentsPanel = viewer.querySelector(".viewer-comments");
   const momentsPanel = viewer.querySelector(".viewer-moments-panel");
-  if (openPanel === "moments") { commentsPanel?.classList.add("closed"); momentsPanel?.classList.add("open"); } else { momentsPanel?.classList.remove("open"); }
+  commentsPanel?.classList.add("closed");
+  momentsPanel?.classList.remove("open");
+  if (openPanel === "moments") {
+    momentsPanel?.classList.add("open");
+  }
 
   const mediaWrap = viewer.querySelector(".media-viewer-media-wrap.is-image");
   if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
@@ -1603,6 +1600,9 @@ function showNextItem() {
 
 function updateViewerMedia() {
   const item = liveItems[currentViewerIndex];
+  document.querySelector(".viewer-likes-panel")?.remove();
+  document.querySelector(".viewer-moments-panel")?.classList.remove("open");
+  document.querySelector(".viewer-comments")?.classList.add("closed");
   const currentWrap = document.querySelector(".media-viewer-media-wrap");
   if (!item || !currentWrap) return;
 
@@ -1642,7 +1642,7 @@ async function showViewerLikes(event) {
 
 function updateViewerLikeCount() {
   const item = liveItems[currentViewerIndex];
-  const count = document.querySelector(".media-viewer-like-count-value");
+  const count = document.querySelector(".media-viewer-like-count");
   if (item && count) count.textContent = Number(item.likes || 0);
   const button = document.querySelector(".media-viewer-action-button");
   if (button && item) button.classList.toggle("liked", Boolean(item.likedByMe));
