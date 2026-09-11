@@ -2426,3 +2426,34 @@ background-position: center;
 .viewer-comment-edit-actions { display:flex; gap:6px; margin-top:6px; }
 .viewer-comment-edit-actions button { border:0; border-radius:999px; padding:6px 10px; cursor:pointer; font-weight:700; }
 .media-viewer-video { object-fit:contain; }
+
+/* v1.0.22 - Like separado del contador para poder abrir la lista de personas */
+.media-viewer-like-count {
+  position: static;
+  z-index: auto;
+  pointer-events: auto;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .62);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.media-viewer-like-count:hover {
+  background: rgba(0, 0, 0, .78);
+}
+.media-viewer-video {
+  border: 0;
+  background: #000;
+}
+@media (max-width: 760px) {
+  .media-viewer-like-count {
+    min-height: 38px;
+    padding: 8px 11px;
+  }
+}
