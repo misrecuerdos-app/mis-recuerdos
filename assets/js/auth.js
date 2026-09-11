@@ -139,7 +139,7 @@ const Auth = {
 
       document.getElementById("google-login")?.remove();
       closeSideMenu?.();
-      const targetPage = typeof getSharedRecallId === "function" && getSharedRecallId() ? "live" : "sections";
+      const targetPage = typeof getSharedRecallId === "function" && getSharedRecallId() ? "live" : "home";
       goTo(targetPage);
     } catch (error) {
       console.error("No se pudo leer la sesión de Google", error);

@@ -353,6 +353,10 @@ function renderInfo() {
             <h2>¿Qué necesitas consultar?</h2>
             <p>Selecciona un tema.</p>
           </div>
+          <div class="info-feature-bullet">
+            <span class="info-feature-icon">✨</span>
+            <p><strong>Momentos:</strong> convierte las fotos y videos que más significan en recuerdos especiales del evento. Cada invitado puede señalar una imagen como graciosa, romántica, emotiva, de baile, de fiesta, de chisme o simplemente especial, para que entre todos descubramos los momentos que vale la pena volver a vivir.</p>
+          </div>
           <div class="info-index">
             <button onclick="openInfoTopic('about')"><span>Qué es Mis Recuerdos</span><b>›</b></button>
             <button onclick="openInfoTopic('guide')"><span>Cómo usarla</span><b>›</b></button>
@@ -780,7 +784,13 @@ function closeViewerMoments() {
   document.getElementById("viewerMomentsPanel")?.classList.remove("open");
 }
 
+function setGalleryHeaderBack(action) {
+  const backButton = document.querySelector(".gallery-shell .icon-back");
+  if (backButton) backButton.setAttribute("onclick", action);
+}
+
 function showGalleryMode(mode) {
+  setGalleryHeaderBack("showGallerySections()");
   const galleryBody = document.getElementById("galleryBody");
   if (!galleryBody) return;
 
@@ -831,6 +841,7 @@ function showGalleryMode(mode) {
 }
 
 function showGallerySections() {
+  setGalleryHeaderBack("goTo('home')");
   const galleryBody = document.getElementById("galleryBody");
   if (!galleryBody) return;
   galleryBody.innerHTML = `
@@ -838,8 +849,8 @@ function showGallerySections() {
       <h2>Explorar Galería</h2>
       <p>Elige una sección del evento para ver sus recuerdos.</p>
     </div>
-    <button class="gallery-recent-button" onclick="showGalleryMode('recent')">🕒 Ver los recuerdos más recientes</button>
-    <div class="gallery-secondary-modes" aria-label="Otras formas de explorar">
+    <div class="gallery-secondary-modes gallery-main-modes" aria-label="Formas de explorar">
+      <button type="button" onclick="showGalleryMode('recent')">Recientes</button>
       <button type="button" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
       <button type="button" onclick="showGalleryMode('moments')">✨ Momentos</button>
     </div>
@@ -916,13 +927,13 @@ async function loadGallerySections() {
 }
 
 function openGallerySection(sectionId) {
+  setGalleryHeaderBack("showGallerySections()");
   const galleryBody = document.getElementById("galleryBody");
   galleryBody.innerHTML = `
     <div class="live-heading">
       <h2>${getSectionName(sectionId)}</h2>
       <p>Recuerdos de esta sección.</p>
     </div>
-    <button class="gallery-back-sections" onclick="showGallerySections()">← Volver a secciones</button>
     <div id="liveContent" class="live-content">Cargando...</div>
   `;
   loadGalleryItems(`${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`, false, "recent", "section");
