@@ -1438,6 +1438,27 @@ background-position: center;
 .info-heading { margin-bottom: 15px; }
 .info-heading h2 { font-size: 21px; }
 .info-heading p { margin-top: 4px; color: #817582; }
+.info-feature-bullet {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 13px 14px;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 12px;
+  background: #fcf9fc;
+}
+.info-feature-icon {
+  flex: 0 0 auto;
+  font-size: 20px;
+  line-height: 1.3;
+}
+.info-feature-bullet p {
+  margin: 0;
+  color: #5d505e;
+  line-height: 1.5;
+  font-size: 13px;
+}
 .info-index { display: grid; gap: 10px; }
 .info-index button {
   min-height: 54px;
@@ -2312,26 +2333,15 @@ background-position: center;
 .live-social-actions {
   left: 50%;
   right: auto;
-  bottom: 12px;
+  bottom: 5px;
   transform: translateX(-50%);
   justify-content: center;
   width: auto;
 }
 
-/* v1.0.19 - navegación inicial de Galería */
+/* v1.0.20 - navegación inicial de Galería: tres botones blancos equivalentes */
 .gallery-recent-button {
-  display: block;
-  width: 100%;
-  margin: 12px 0 10px;
-  padding: 14px 18px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--color-primary);
-  color: #fff;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  display: none;
 }
 
 .gallery-secondary-modes {
@@ -2342,15 +2352,20 @@ background-position: center;
 }
 
 .gallery-secondary-modes button {
+  flex: 1 1 0;
   border: 1px solid #eadfea;
   background: #fff;
   color: #6b5d70;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+.gallery-main-modes {
+  width: 100%;
+  margin-top: 12px;
 }
 
 .live-card-metrics { justify-content: flex-start; }
