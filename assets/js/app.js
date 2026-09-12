@@ -1440,13 +1440,19 @@ function createViewerMedia(item) {
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
       ${isVideo
-        ? `<iframe
+        ? `<video
             class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview"
-            allow="autoplay; fullscreen"
-            allowfullscreen
+            src="https://drive.usercontent.google.com/download?id=${encodeURIComponent(item.fileId)}&export=download&confirm=t"
+            data-fallback-src="https://drive.google.com/uc?export=download&id=${encodeURIComponent(item.fileId)}"
+            playsinline
+            webkit-playsinline
+            preload="metadata"
+            controlslist="nodownload noplaybackrate noremoteplayback"
+            disablepictureinpicture
+            onerror="handleViewerVideoError(this)"
+            onclick="handleViewerVideoTap(event)"
             title="Video del recuerdo"
-          ></iframe>`
+          ></video>`
         : `<img
             class="media-viewer-image"
             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
@@ -1480,6 +1486,75 @@ function createViewerMedia(item) {
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
+}
+
+let viewerVideoHideTimer = null;
+
+function showViewerVideoControls(video, delay = 3500) {
+  if (!video) return;
+  video.controls = true;
+  if (viewerVideoHideTimer) window.clearTimeout(viewerVideoHideTimer);
+  viewerVideoHideTimer = window.setTimeout(() => {
+    if (video && !video.paused) video.controls = false;
+  }, delay);
+}
+
+function handleViewerVideoTap(event) {
+  const video = event?.currentTarget;
+  if (!video) return;
+  event.preventDefault?.();
+  event.stopPropagation?.();
+
+  if (video.controls) {
+    if (video.paused) {
+      video.play().catch(() => {});
+    }
+    showViewerVideoControls(video);
+    return;
+  }
+
+  if (video.paused) {
+    video.play().catch(() => {});
+  } else {
+    video.pause();
+    video.controls = true;
+  }
+}
+
+function handleViewerVideoError(video) {
+  if (!video) return;
+  const fallback = video.dataset.fallbackSrc;
+  if (fallback && video.src !== fallback) {
+    video.dataset.fallbackUsed = "1";
+    video.src = fallback;
+    video.load();
+    return;
+  }
+
+  // Último recurso: el visor oficial de Drive. Es menos limpio en móvil,
+  // pero permite reproducir el video cuando Drive no entrega el archivo
+  // directamente al elemento <video>.
+  const iframe = document.createElement("iframe");
+  iframe.className = "media-viewer-video media-viewer-video-fallback";
+  iframe.src = `https://drive.google.com/file/d/${encodeURIComponent(currentViewerFileId())}/preview`;
+  iframe.allow = "autoplay; fullscreen";
+  iframe.setAttribute("allowfullscreen", "");
+  iframe.title = "Video del recuerdo";
+  video.replaceWith(iframe);
+}
+
+function currentViewerFileId() {
+  return liveItems[currentViewerIndex]?.fileId || "";
+}
+
+function prepareViewerVideo(video) {
+  if (!video) return;
+  video.controls = false;
+  video.addEventListener("play", () => showViewerVideoControls(video), { passive: true });
+  video.addEventListener("pause", () => {
+    if (viewerVideoHideTimer) window.clearTimeout(viewerVideoHideTimer);
+    video.controls = true;
+  }, { passive: true });
 }
 
 function handleViewerDoubleTap(event) {
@@ -1560,6 +1635,7 @@ function openViewer(index, openPanel = "none") {
   `;
 
   document.body.appendChild(viewer);
+  prepareViewerVideo(viewer.querySelector(".media-viewer-video"));
   recordViewerView(item);
   loadViewerComments(item.uuid);
   renderViewerMoments(item);
@@ -1609,6 +1685,7 @@ function updateViewerMedia() {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = createViewerMedia(item).trim();
   currentWrap.replaceWith(wrapper.firstElementChild);
+  prepareViewerVideo(document.querySelector(".media-viewer-video"));
   recordViewerView(item);
   loadViewerComments(item.uuid);
   renderViewerMoments(item);
@@ -1664,6 +1741,10 @@ async function recordViewerView(item) {
 }
 
 function closeViewer() {
+  if (viewerVideoHideTimer) {
+    window.clearTimeout(viewerVideoHideTimer);
+    viewerVideoHideTimer = null;
+  }
   viewerCommentsRequestToken++;
   const viewer = document.querySelector(".media-viewer");
   if (viewer) viewer.remove();
