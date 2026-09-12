@@ -129,32 +129,54 @@ function getProcessingVideoThumbnailDataUrl() {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function handleDriveThumbnailError(image) {
-  if (!image || image.dataset.retryPending === "true") return;
+function getThumbnailPlaceholderDataUrl() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
+      <rect width="100%" height="100%" fill="#f2edf2"/>
+      <circle cx="300" cy="245" r="74" fill="#d94f91"/>
+      <rect x="252" y="222" width="96" height="70" rx="12" fill="white"/>
+      <circle cx="300" cy="257" r="20" fill="#d94f91"/>
+      <text x="300" y="370" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="600" fill="#5a3150">
+        Cargando recuerdo…
+      </text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
 
-  const isVideo = image.dataset.isVideo === "true";
-  if (!isVideo) return;
+function handleDriveThumbnailLoad(image) {
+  if (!image) return;
+  image.dataset.retryPending = "false";
+  image.dataset.retries = "0";
+}
+
+function handleDriveThumbnailError(image) {
+  if (!image) return;
 
   const fileId = image.dataset.fileId;
+  const isVideo = image.dataset.isVideo === "true";
   const retries = Number(image.dataset.retries || 0);
 
-  image.src = getProcessingVideoThumbnailDataUrl();
+  // Nunca dejamos el icono azul de imagen rota como estado visual.
+  image.src = isVideo ? getProcessingVideoThumbnailDataUrl() : getThumbnailPlaceholderDataUrl();
 
-  if (!fileId || retries >= 8) return;
+  if (!fileId || retries >= 4 || image.dataset.retryPending === "true") return;
 
+  // Reintentos escalonados: 1s, 3s, 7s y 15s.
+  const delays = [1000, 3000, 7000, 15000];
+  const delay = delays[retries] || 15000;
   image.dataset.retryPending = "true";
   window.setTimeout(() => {
     image.dataset.retryPending = "false";
     image.dataset.retries = String(retries + 1);
-    image.src = `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w800&_=${Date.now()}`;
-  }, 15000);
+    const base = `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w400`;
+    image.src = `${base}&_=${Date.now()}`;
+  }, delay);
 }
 
-function refreshPendingVideoThumbnails(root = document) {
-  root.querySelectorAll('img[data-is-video="true"]').forEach(image => {
-    if (image.complete && image.naturalWidth === 0) {
-      handleDriveThumbnailError(image);
-    }
+function refreshPendingDriveThumbnails(root = document) {
+  root.querySelectorAll('img[data-file-id]').forEach(image => {
+    if (image.complete && image.naturalWidth === 0) handleDriveThumbnailError(image);
   });
 }
 
@@ -376,7 +398,12 @@ let galleryContext = {
   url: "",
   showInfo: true,
   sort: "recent",
-  mode: "recent"
+  mode: "recent",
+  page: 1,
+  pageSize: 9,
+  totalItems: 0,
+  totalPages: 1,
+  momentType: ""
 };
 
 const MOMENT_TYPES = [
@@ -745,7 +772,7 @@ function renderGalleryItems(items, showInfo = true) {
     return `
       <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" onclick="handleGalleryTap(event, ${index})">
         <div class="live-media">
-          <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800" alt="" loading="lazy" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onerror="handleDriveThumbnailError(this)">
+          <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w400" alt="" loading="lazy" decoding="async" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onload="handleDriveThumbnailLoad(this)" onerror="handleDriveThumbnailError(this)">
           ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
             <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" oncontextmenu="handleCardLikeList(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
@@ -757,7 +784,14 @@ function renderGalleryItems(items, showInfo = true) {
       </article>
     `;
   }).join("");
-  refreshPendingVideoThumbnails(container);
+  refreshPendingDriveThumbnails(container);
+  const oldPagination = document.getElementById("galleryPagination");
+  oldPagination?.remove();
+  const pagination = document.createElement("div");
+  pagination.id = "galleryPagination";
+  pagination.className = "gallery-pagination";
+  container.insertAdjacentElement("afterend", pagination);
+  renderGalleryPagination();
 }
 
 function handleCardLike(event, index) {
@@ -853,7 +887,7 @@ function showGalleryMode(mode) {
       </div>
       <div id="liveContent" class="live-content">Cargando tendencia...</div>
     `;
-    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "trend", "trend");
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "trend", "trend", 1, "");
     return;
   }
 
@@ -872,7 +906,7 @@ function showGalleryMode(mode) {
       </div>
       <div id="liveContent" class="live-content">Cargando momentos...</div>
     `;
-    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=moments`, true, "moments", "moments");
+    loadGalleryItems(`${UPLOAD_ENDPOINT}?action=moments`, true, "moments", "moments", 1, "");
     return;
   }
 
@@ -884,7 +918,7 @@ function showGalleryMode(mode) {
     <button class="gallery-sections-link" onclick="showGallerySections()">📂 Explorar por sección</button>
     <div id="liveContent" class="live-content">Cargando recuerdos...</div>
   `;
-  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent", "recent");
+  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=live`, true, "recent", "recent", 1, "");
 }
 
 function showGallerySections() {
@@ -909,7 +943,9 @@ function showGallerySections() {
 function setGallerySort(sort) {
   if (sort === "views") { showGalleryMode("trend"); return; }
   galleryContext.sort = sort;
-  if (galleryContext.url) loadGalleryItems(galleryContext.url, galleryContext.showInfo, sort, galleryContext.mode);
+  if (galleryContext.url) {
+    loadGalleryItems(galleryContext.url, galleryContext.showInfo, sort, galleryContext.mode, 1, galleryContext.momentType || "");
+  }
 }
 
 function toggleMomentFilterMenu(event) {
@@ -924,14 +960,14 @@ function filterMomentType(typeId) {
   const label = document.getElementById("momentFilterLabel");
   if (label) label.textContent = type ? `${type.icon} ${type.name}` : "Todos";
   document.querySelectorAll("#momentFilterMenu button").forEach(button => button.classList.remove("active"));
-  const active = Array.from(document.querySelectorAll("#momentFilterMenu button")).find(button => (button.textContent || "").trim() === (type ? `${type.icon} ${type.name}` : "Todos"));
+  const active = Array.from(document.querySelectorAll("#momentFilterMenu button")).find(button =>
+    (button.textContent || "").trim() === (type ? `${type.icon} ${type.name}` : "Todos")
+  );
   active?.classList.add("active");
   const menu = document.getElementById("momentFilterMenu");
   if (menu) menu.hidden = true;
-  const container = document.getElementById("liveContent");
-  if (!container) return;
-  const filtered = typeId ? liveItems.filter(item => (item.momentTypes || []).includes(typeId)) : liveItems;
-  renderGalleryItems(filtered, true);
+  if (!galleryContext.url) return;
+  loadGalleryItems(galleryContext.url, galleryContext.showInfo, galleryContext.sort, galleryContext.mode, 1, typeId || "");
 }
 
 async function loadGallerySections() {
@@ -950,7 +986,7 @@ async function loadGallerySections() {
       >
         <div class="gallery-section-cover">
           ${section.coverFileId
-            ? `<img src="https://drive.google.com/thumbnail?id=${section.coverFileId}&sz=w800" alt="" loading="lazy">`
+            ? `<img src="https://drive.google.com/thumbnail?id=${section.coverFileId}&sz=w400" alt="" loading="lazy" decoding="async" data-file-id="${section.coverFileId}" data-is-video="${String(section.coverMimeType || "").startsWith("video/") ? "true" : "false"}" onload="handleDriveThumbnailLoad(this)" onerror="handleDriveThumbnailError(this)">`
             : `<div class="gallery-section-placeholder">${section.icon}</div>`
           }
         </div>
@@ -966,7 +1002,8 @@ async function loadGallerySections() {
       </button>
     `).join("");
 
-    refreshPendingVideoThumbnails(container);
+    refreshPendingDriveThumbnails(container);
+  renderGalleryPagination();
   } catch (error) {
     container.innerHTML = `<div class="live-error">Error al cargar las secciones.</div>`;
     console.error(error);
@@ -983,31 +1020,46 @@ function openGallerySection(sectionId) {
     </div>
     <div id="liveContent" class="live-content">Cargando...</div>
   `;
-  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`, false, "recent", "section");
+  loadGalleryItems(`${UPLOAD_ENDPOINT}?action=section&sectionId=${encodeURIComponent(sectionId)}`, false, "recent", "section", 1, "");
 }
 
-async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "recent") {
+async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "recent", page = 1, momentType = "") {
   const container = document.getElementById("liveContent");
   if (!container) return;
 
-  container.textContent = "Cargando recuerdos...";
-  galleryContext = { url, showInfo, sort, mode };
+  container.innerHTML = `<div class="gallery-page-loading"><span class="gallery-loading-spinner"></span><span>Cargando recuerdos…</span></div>`;
+  galleryContext = {
+    ...galleryContext,
+    url,
+    showInfo,
+    sort,
+    mode,
+    page: Number(page) || 1,
+    pageSize: 9,
+    momentType: momentType || ""
+  };
 
   try {
     const separator = url.includes("?") ? "&" : "?";
     const optionalIdentity = AppState?.security?.user?.id
       ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
       : "";
-    const response = await fetch(`${url}${separator}sort=${encodeURIComponent(sort)}${optionalIdentity}&_=${Date.now()}`);
+    const pageParams = `&page=${encodeURIComponent(galleryContext.page)}&pageSize=${encodeURIComponent(galleryContext.pageSize)}` +
+      (momentType ? `&type=${encodeURIComponent(momentType)}` : "");
+    const response = await fetch(`${url}${separator}sort=${encodeURIComponent(sort)}${pageParams}${optionalIdentity}&_=${Date.now()}`);
     const result = await response.json();
 
     if (!result.success) throw new Error("No fue posible obtener la galería.");
 
     const items = (result.items || []).map(normalizeGalleryItem);
+    galleryContext.totalItems = Number(result.totalItems ?? items.length);
+    galleryContext.totalPages = Math.max(1, Number(result.totalPages ?? Math.ceil(galleryContext.totalItems / galleryContext.pageSize)));
+    galleryContext.page = Math.min(Math.max(1, Number(result.page || galleryContext.page)), galleryContext.totalPages);
 
     if (!items.length) {
       liveItems = [];
       container.innerHTML = `<div class="live-empty">Aún no hay recuerdos compartidos.</div>`;
+      renderGalleryPagination();
       return;
     }
 
@@ -1034,9 +1086,29 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
       }
     }
   } catch (error) {
-    container.innerHTML = `<div class="live-error">Error al cargar la galería.</div>`;
+    container.innerHTML = `<div class="live-error">No fue posible cargar los recuerdos. <button type="button" class="gallery-retry-button" onclick="loadGalleryItems(galleryContext.url, galleryContext.showInfo, galleryContext.sort, galleryContext.mode, galleryContext.page, galleryContext.momentType)">Reintentar</button></div>`;
     console.error(error);
   }
+}
+
+function renderGalleryPagination() {
+  const container = document.getElementById("galleryPagination");
+  if (!container) return;
+  const totalPages = Math.max(1, Number(galleryContext.totalPages || 1));
+  const page = Math.min(Math.max(1, Number(galleryContext.page || 1)), totalPages);
+  container.innerHTML = `
+    <button type="button" class="gallery-page-button" onclick="changeGalleryPage(${page - 1})" ${page <= 1 ? "disabled" : ""} aria-label="Página anterior">‹</button>
+    <span class="gallery-page-indicator">${page} de ${totalPages}</span>
+    <button type="button" class="gallery-page-button" onclick="changeGalleryPage(${page + 1})" ${page >= totalPages ? "disabled" : ""} aria-label="Página siguiente">›</button>
+  `;
+}
+
+function changeGalleryPage(page) {
+  const totalPages = Math.max(1, Number(galleryContext.totalPages || 1));
+  const nextPage = Math.min(Math.max(1, Number(page || 1)), totalPages);
+  if (nextPage === Number(galleryContext.page || 1)) return;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  loadGalleryItems(galleryContext.url, galleryContext.showInfo, galleryContext.sort, galleryContext.mode, nextPage, galleryContext.momentType || "");
 }
 
 function getSectionName(sectionId) {
@@ -1201,7 +1273,8 @@ async function loadMineGrouped() {
 
     updateMineDeleteBar();
 
-    refreshPendingVideoThumbnails(container);
+    refreshPendingDriveThumbnails(container);
+  renderGalleryPagination();
 
   } catch (error) {
     container.innerHTML = `
@@ -1435,28 +1508,54 @@ function showShareFeedback(message) {
   window.setTimeout(() => feedback.remove(), 1800);
 }
 
+function formatVideoTime(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return "0:00";
+  const total = Math.floor(value);
+  const minutes = Math.floor(total / 60);
+  const secs = String(total % 60).padStart(2, "0");
+  return `${minutes}:${secs}`;
+}
+
 function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
       ${isVideo
-        ? `<video
-            class="media-viewer-video"
-            src="https://drive.usercontent.google.com/download?id=${encodeURIComponent(item.fileId)}&export=download&confirm=t"
-            data-fallback-src="https://drive.google.com/uc?export=download&id=${encodeURIComponent(item.fileId)}"
-            playsinline
-            webkit-playsinline
-            preload="metadata"
-            controlslist="nodownload noplaybackrate noremoteplayback"
-            disablepictureinpicture
-            onerror="handleViewerVideoError(this)"
-            onclick="handleViewerVideoTap(event)"
-            title="Video del recuerdo"
-          ></video>`
+        ? `<div class="custom-video-player" data-file-id="${encodeURIComponent(item.fileId)}">
+            <video
+              class="media-viewer-video"
+              src="https://drive.google.com/uc?export=download&id=${encodeURIComponent(item.fileId)}"
+              data-alternate-src="https://drive.usercontent.google.com/download?id=${encodeURIComponent(item.fileId)}&export=download&confirm=t"
+              playsinline
+              webkit-playsinline
+              preload="metadata"
+              disablepictureinpicture
+              onloadedmetadata="syncCustomVideoControls(this)"
+              ontimeupdate="syncCustomVideoControls(this)"
+              onplay="handleCustomVideoPlay(this)"
+              onpause="handleCustomVideoPause(this)"
+              onended="handleCustomVideoEnded(this)"
+              onerror="handleCustomVideoError(this)"
+              onclick="handleCustomVideoTap(event)"
+              title="Video del recuerdo"
+            ></video>
+            <button type="button" class="custom-video-center-button" onclick="toggleCustomVideo(event)" aria-label="Reproducir video">▶</button>
+            <div class="custom-video-loading">Cargando video…</div>
+            <div class="custom-video-controls" onclick="event.stopPropagation()">
+              <button type="button" class="custom-video-control-button" onclick="seekCustomVideo(event, -10)" aria-label="Retroceder 10 segundos">↶10</button>
+              <button type="button" class="custom-video-control-button custom-video-play-button" onclick="toggleCustomVideo(event)" aria-label="Reproducir o pausar">▶</button>
+              <button type="button" class="custom-video-control-button" onclick="seekCustomVideo(event, 10)" aria-label="Avanzar 10 segundos">10↷</button>
+              <input class="custom-video-progress" type="range" min="0" max="100" value="0" step="0.1" oninput="seekCustomVideoProgress(event, this.value)" aria-label="Progreso del video">
+              <span class="custom-video-time">0:00 / 0:00</span>
+              <button type="button" class="custom-video-control-button" onclick="toggleCustomVideoFullscreen(event)" aria-label="Pantalla completa">⛶</button>
+            </div>
+          </div>`
         : `<img
             class="media-viewer-image"
             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
             alt=""
+            decoding="async"
           >`
       }
       <div class="media-viewer-actions">
@@ -1488,73 +1587,162 @@ function createViewerMedia(item) {
   `;
 }
 
-let viewerVideoHideTimer = null;
+let customVideoHideTimer = null;
 
-function showViewerVideoControls(video, delay = 3500) {
-  if (!video) return;
-  video.controls = true;
-  if (viewerVideoHideTimer) window.clearTimeout(viewerVideoHideTimer);
-  viewerVideoHideTimer = window.setTimeout(() => {
-    if (video && !video.paused) video.controls = false;
-  }, delay);
+function getCustomVideoPlayer(video) {
+  return video?.closest(".custom-video-player") || null;
 }
 
-function handleViewerVideoTap(event) {
-  const video = event?.currentTarget;
-  if (!video) return;
-  event.preventDefault?.();
-  event.stopPropagation?.();
-
-  if (video.controls) {
-    if (video.paused) {
-      video.play().catch(() => {});
-    }
-    showViewerVideoControls(video);
-    return;
+function showCustomVideoControls(video, delay = 3200) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  player.classList.add("controls-visible");
+  if (customVideoHideTimer) window.clearTimeout(customVideoHideTimer);
+  if (!video.paused) {
+    customVideoHideTimer = window.setTimeout(() => {
+      player.classList.remove("controls-visible");
+    }, delay);
   }
+}
 
+function syncCustomVideoControls(video) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  const duration = Number(video.duration);
+  const current = Number(video.currentTime || 0);
+  const progress = player.querySelector(".custom-video-progress");
+  const time = player.querySelector(".custom-video-time");
+  const playButton = player.querySelector(".custom-video-play-button");
+  const center = player.querySelector(".custom-video-center-button");
+  const loading = player.querySelector(".custom-video-loading");
+  if (progress) progress.value = Number.isFinite(duration) && duration > 0 ? String((current / duration) * 100) : "0";
+  if (time) time.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
+  if (playButton) playButton.textContent = video.paused ? "▶" : "❚❚";
+  if (center) center.classList.toggle("hidden", !video.paused || current > 0);
+  if (loading) loading.classList.toggle("hidden", video.readyState >= 3);
+}
+
+function toggleCustomVideo(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const video = event?.currentTarget?.closest(".custom-video-player")?.querySelector("video") ||
+    document.querySelector(".custom-video-player video");
+  if (!video) return;
   if (video.paused) {
-    video.play().catch(() => {});
+    video.play().catch(error => {
+      console.warn("No fue posible reproducir el video.", error);
+      showCustomVideoError(video);
+    });
   } else {
     video.pause();
-    video.controls = true;
   }
+  showCustomVideoControls(video);
 }
 
-function handleViewerVideoError(video) {
+function handleCustomVideoTap(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const video = event.currentTarget;
+  const player = getCustomVideoPlayer(video);
+  if (!video || !player) return;
+  if (!player.classList.contains("controls-visible")) {
+    showCustomVideoControls(video);
+    return;
+  }
+  toggleCustomVideo(event);
+}
+
+function handleCustomVideoPlay(video) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  player.classList.add("playing");
+  syncCustomVideoControls(video);
+  showCustomVideoControls(video);
+}
+
+function handleCustomVideoPause(video) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  player.classList.remove("playing");
+  if (customVideoHideTimer) window.clearTimeout(customVideoHideTimer);
+  player.classList.add("controls-visible");
+  syncCustomVideoControls(video);
+}
+
+function handleCustomVideoEnded(video) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  player.classList.add("controls-visible");
+  syncCustomVideoControls(video);
+}
+
+function seekCustomVideo(event, seconds) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const video = event?.currentTarget?.closest(".custom-video-player")?.querySelector("video");
   if (!video) return;
-  const fallback = video.dataset.fallbackSrc;
-  if (fallback && video.src !== fallback) {
-    video.dataset.fallbackUsed = "1";
-    video.src = fallback;
+  const duration = Number(video.duration);
+  if (!Number.isFinite(duration)) return;
+  video.currentTime = Math.min(duration, Math.max(0, video.currentTime + Number(seconds || 0)));
+  showCustomVideoControls(video);
+}
+
+function seekCustomVideoProgress(event, value) {
+  event?.stopPropagation?.();
+  const video = event?.currentTarget?.closest(".custom-video-player")?.querySelector("video");
+  if (!video) return;
+  const duration = Number(video.duration);
+  if (!Number.isFinite(duration) || duration <= 0) return;
+  video.currentTime = duration * (Number(value) / 100);
+  showCustomVideoControls(video);
+}
+
+function toggleCustomVideoFullscreen(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const player = event?.currentTarget?.closest(".custom-video-player");
+  if (!player) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen?.().catch?.(() => {});
+    return;
+  }
+  player.requestFullscreen?.().catch?.(() => {});
+}
+
+function handleCustomVideoError(video) {
+  if (!video) return;
+  const alternate = video.dataset.alternateSrc;
+  if (alternate && video.dataset.alternateUsed !== "1") {
+    video.dataset.alternateUsed = "1";
+    video.src = alternate;
     video.load();
     return;
   }
-
-  // Último recurso: el visor oficial de Drive. Es menos limpio en móvil,
-  // pero permite reproducir el video cuando Drive no entrega el archivo
-  // directamente al elemento <video>.
-  const iframe = document.createElement("iframe");
-  iframe.className = "media-viewer-video media-viewer-video-fallback";
-  iframe.src = `https://drive.google.com/file/d/${encodeURIComponent(currentViewerFileId())}/preview`;
-  iframe.allow = "autoplay; fullscreen";
-  iframe.setAttribute("allowfullscreen", "");
-  iframe.title = "Video del recuerdo";
-  video.replaceWith(iframe);
+  showCustomVideoError(video);
 }
 
-function currentViewerFileId() {
-  return liveItems[currentViewerIndex]?.fileId || "";
+function showCustomVideoError(video) {
+  const player = getCustomVideoPlayer(video);
+  if (!player) return;
+  player.classList.add("video-error");
+  const loading = player.querySelector(".custom-video-loading");
+  if (loading) loading.innerHTML = `No se pudo reproducir el video aquí.<br><button type="button" onclick="openVideoInDrive(event)">Abrir video</button>`;
+  loading?.classList.remove("hidden");
+  player.querySelector(".custom-video-center-button")?.classList.add("hidden");
+}
+
+function openVideoInDrive(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const item = liveItems[currentViewerIndex];
+  if (!item?.fileId) return;
+  window.open(`https://drive.google.com/file/d/${encodeURIComponent(item.fileId)}/view`, "_blank", "noopener");
 }
 
 function prepareViewerVideo(video) {
   if (!video) return;
   video.controls = false;
-  video.addEventListener("play", () => showViewerVideoControls(video), { passive: true });
-  video.addEventListener("pause", () => {
-    if (viewerVideoHideTimer) window.clearTimeout(viewerVideoHideTimer);
-    video.controls = true;
-  }, { passive: true });
+  syncCustomVideoControls(video);
 }
 
 function handleViewerDoubleTap(event) {
@@ -1744,6 +1932,10 @@ function closeViewer() {
   if (viewerVideoHideTimer) {
     window.clearTimeout(viewerVideoHideTimer);
     viewerVideoHideTimer = null;
+  }
+  if (customVideoHideTimer) {
+    window.clearTimeout(customVideoHideTimer);
+    customVideoHideTimer = null;
   }
   viewerCommentsRequestToken++;
   const viewer = document.querySelector(".media-viewer");
