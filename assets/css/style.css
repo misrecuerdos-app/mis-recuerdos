@@ -776,6 +776,8 @@ background-position: center;
   font-size: 30px;
   line-height: 1;
   cursor: pointer;
+  z-index: 10000;
+  pointer-events: auto;
 }
 
 .media-viewer-image {
@@ -816,7 +818,8 @@ background-position: center;
   .media-viewer-close {
     top: max(14px, env(safe-area-inset-top));
     right: 14px;
-    z-index: 4;
+    z-index: 10000;
+    pointer-events: auto;
   }
 
   .media-viewer-prev {
@@ -1914,6 +1917,8 @@ background-position: center;
 }
 
 .media-viewer-content {
+  position: relative;
+  z-index: 1;
   width: min(1180px, 96vw);
   max-height: 92vh;
   display: grid;
