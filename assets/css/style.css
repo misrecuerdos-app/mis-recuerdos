@@ -2479,3 +2479,67 @@ background-position: center;
     border-radius: 0;
   }
 }
+
+
+/* v1.0.24 - galería ligera, paginación y reproductor propio */
+.gallery-page-loading {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #7d7386;
+  font-weight: 700;
+}
+.gallery-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #eadfea;
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: gallerySpin .8s linear infinite;
+}
+@keyframes gallerySpin { to { transform: rotate(360deg); } }
+.gallery-pagination {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 0 24px;
+}
+.gallery-page-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #e2d7e0;
+  border-radius: 50%;
+  background: #fff;
+  color: #5b4657;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,.06);
+}
+.gallery-page-button:disabled {
+  opacity: .35;
+  cursor: default;
+  box-shadow: none;
+}
+.gallery-page-indicator {
+  min-width: 74px;
+  text-align: center;
+  color: #6f6273;
+  font-size: 13px;
+  font-weight: 800;
+}
+.gallery-retry-button {
+  margin-left: 8px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: #f1e5ee;
+  color: #7a3153;
+  font-weight: 800;
+  cursor: pointer;
+}
+
