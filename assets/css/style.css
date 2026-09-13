@@ -762,6 +762,7 @@ background-position: center;
   padding: 24px;
   background: rgba(0, 0, 0, 0.94);
   isolation: isolate;
+  overflow: hidden;
 }
 
 .media-viewer-close {
@@ -779,6 +780,22 @@ background-position: center;
   cursor: pointer;
   z-index: 10000;
   pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.media-viewer-content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1100px);
+  max-height: calc(100dvh - 96px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-viewer-close {
+  z-index: 100000;
 }
 
 .media-viewer-image {
