@@ -761,6 +761,7 @@ background-position: center;
   justify-content: center;
   padding: 24px;
   background: rgba(0, 0, 0, 0.94);
+  isolation: isolate;
 }
 
 .media-viewer-close {
@@ -798,20 +799,40 @@ background-position: center;
 @media (max-width: 480px) {
   .media-viewer {
     padding: 0;
+    align-items: flex-start;
+  }
+
+  /* En móvil dejamos una franja libre arriba para que la X quede fuera del iframe. */
+  .media-viewer-content {
+    width: 100%;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: max(64px, calc(env(safe-area-inset-top) + 54px));
+    box-sizing: border-box;
+  }
+
+  #viewerMediaContainer {
+    width: 100%;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
   }
 
   .media-viewer-video {
     width: 100vw;
-    height: 100dvh;
+    height: min(82dvh, calc(100dvh - 90px));
     max-width: none;
-    max-height: none;
+    max-height: calc(100dvh - 90px);
     border-radius: 0;
   }
 
   .media-viewer-image {
     width: 100%;
     max-width: 100%;
-    max-height: 100dvh;
+    max-height: calc(100dvh - 90px);
     border-radius: 0;
   }
 
