@@ -1594,12 +1594,6 @@ function openViewer(index, openPanel = "none") {
 
   viewer.innerHTML = `
     <button
-      class="media-viewer-close"
-      onclick="closeViewer()"
-      aria-label="Cerrar visor"
-    >×</button>
-
-    <button
       class="media-viewer-arrow media-viewer-prev"
       onclick="showPreviousItem()"
       aria-label="Anterior"
@@ -1639,9 +1633,21 @@ function openViewer(index, openPanel = "none") {
       onclick="showNextItem()"
       aria-label="Siguiente"
     >›</button>
+
+    <button
+      class="media-viewer-close"
+      type="button"
+      aria-label="Cerrar visor"
+    >×</button>
   `;
 
   document.body.appendChild(viewer);
+  const closeButton = viewer.querySelector(".media-viewer-close");
+  closeButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeViewer();
+  });
   recordViewerView(item);
   loadViewerComments(item.uuid);
   renderViewerMoments(item);
