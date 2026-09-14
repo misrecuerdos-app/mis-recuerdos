@@ -1752,14 +1752,10 @@ async function recordViewerView(item) {
 }
 
 function closeViewer() {
-  if (viewerVideoHideTimer) {
-    window.clearTimeout(viewerVideoHideTimer);
-    viewerVideoHideTimer = null;
-  }
-  if (customVideoHideTimer) {
-    window.clearTimeout(customVideoHideTimer);
-    customVideoHideTimer = null;
-  }
+  // v1.0.29: los temporizadores pertenecían al reproductor HTML5
+  // experimental de v1.0.24. Al conservar estas referencias después de
+  // volver al iframe de Drive, provocaban ReferenceError y la X no podía
+  // llegar a ejecutar viewer.remove().
   viewerCommentsRequestToken++;
   const viewer = document.querySelector(".media-viewer");
   if (viewer) viewer.remove();
