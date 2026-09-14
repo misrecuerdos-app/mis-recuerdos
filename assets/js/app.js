@@ -1524,7 +1524,7 @@ function createViewerMedia(item) {
       ${isVideo
         ? `<iframe
             class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview"
+            src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal"
             allow="autoplay; fullscreen"
             allowfullscreen
             title="Video del recuerdo"
