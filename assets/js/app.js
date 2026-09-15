@@ -275,58 +275,55 @@ function openSideMenu() {
     <aside class="side-menu-panel" aria-label="Menú principal">
       <div class="side-menu-header">
         <div>
-          <strong>${escapeHtml(AppState.app.name)}</strong>
-          <span>v${escapeHtml(AppState.app.version)}</span>
+          <strong>Configuración</strong>
+          <span>Mis Recuerdos</span>
         </div>
         <button class="side-menu-close" onclick="closeSideMenu()" aria-label="Cerrar">×</button>
       </div>
 
-      <section class="config-preview-card">
-        <div class="config-preview-title">⚙️ <strong>Configuración del evento</strong></div>
-        <p class="config-preview-note">Ensayo de las opciones de parametrización. Por ahora son solo visuales.</p>
+      <nav class="config-navigation" aria-label="Opciones de configuración">
+        <button type="button" class="config-home-item" onclick="closeSideMenu()">
+          <span>Inicio</span>
+        </button>
 
-        <div class="config-menu-group">
-          <div class="config-menu-heading">🎪 Evento</div>
-          ${configMenuItem("event-data", "📅", "Datos del evento", "Nombre, fecha, mensaje y datos generales")}
-          ${configMenuItem("sections", "🧩", "Secciones", "Nombres, orden e iconos de cada sección")}
-          ${configMenuItem("guests", "👥", "Lista de invitados", "Personas, nombres y datos para vincular Momentos")}
-        </div>
+        ${configMenuGroup("event", "Evento", [
+          ["event-data", "Datos del evento"],
+          ["sections", "Secciones"],
+          ["guests", "Lista de invitados"]
+        ])}
 
-        <div class="config-menu-group">
-          <div class="config-menu-heading">🎨 Apariencia</div>
-          ${configMenuItem("branding", "✨", "Identidad visual", "Logo, colores, tipografía y nombre de la app")}
-          ${configMenuItem("images", "🖼️", "Imágenes e iconos", "Portada, imágenes de secciones e iconos")}
-        </div>
+        ${configMenuGroup("appearance", "Apariencia", [
+          ["branding", "Identidad visual"],
+          ["images", "Imágenes e iconos"]
+        ])}
 
-        <div class="config-menu-group">
-          <div class="config-menu-heading">☁️ Operación</div>
-          ${configMenuItem("drive", "📁", "Almacenamiento", "Cuenta de Google Drive y carpeta del evento")}
-          ${configMenuItem("features", "⭐", "Funciones de la aplicación", "Galería, Likes, comentarios, Momentos y compartir")}
-          ${configMenuItem("access", "🔐", "Acceso y permisos", "Inicio de sesión, invitados y permisos del administrador")}
-        </div>
+        ${configMenuGroup("operation", "Operación", [
+          ["drive", "Almacenamiento"],
+          ["features", "Funciones de la aplicación"],
+          ["access", "Acceso y permisos"]
+        ])}
 
-        <div class="config-menu-group">
-          <div class="config-menu-heading">🛠️ Administración</div>
-          ${configMenuItem("product", "📦", "Información del producto", "Versión, soporte y datos de Mis Recuerdos")}
-          ${configMenuItem("backup", "💾", "Respaldo y mantenimiento", "Configuración de respaldo y mantenimiento del evento")}
-        </div>
-      </section>
+        ${configMenuGroup("admin", "Administración", [
+          ["product", "Información del producto"],
+          ["backup", "Respaldo y mantenimiento"]
+        ])}
+      </nav>
 
       <section class="session-card">
-        <h2>Sesión actual</h2>
+        <h2>Sesión</h2>
         ${user ? `
           <div class="session-person">
-            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar">👤</div>`}
+            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar"></div>`}
             <div>
               <strong>${escapeHtml(user.name || "Usuario")}</strong>
               <span>${escapeHtml(user.email || "Correo no disponible")}</span>
             </div>
           </div>
-          <button class="session-action primary" onclick="Auth.changeAccount()">Cambiar cuenta</button>
+          <button class="session-action" onclick="Auth.changeAccount()">Cambiar cuenta</button>
           <button class="session-action" onclick="Auth.logout()">Cerrar sesión</button>
         ` : `
           <p>No hay una sesión iniciada.</p>
-          <button class="session-action primary" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
+          <button class="session-action" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
         `}
       </section>
     </aside>
@@ -336,17 +333,31 @@ function openSideMenu() {
   requestAnimationFrame(() => menu.classList.add("open"));
 }
 
-function configMenuItem(id, icon, title, description) {
+function configMenuGroup(id, title, items) {
   return `
-    <button type="button" class="config-menu-item" onclick="showConfigPlaceholder('${id}', '${escapeHtml(title)}')">
-      <span class="config-menu-icon">${icon}</span>
-      <span class="config-menu-copy">
-        <strong>${escapeHtml(title)}</strong>
-        <small>${escapeHtml(description)}</small>
-      </span>
-      <span class="config-menu-arrow">›</span>
-    </button>
+    <section class="config-submenu" data-config-group="${id}">
+      <button type="button" class="config-group-button" aria-expanded="false" onclick="toggleConfigGroup('${id}')">
+        <span>${escapeHtml(title)}</span>
+        <span class="config-group-chevron" aria-hidden="true">›</span>
+      </button>
+      <div class="config-submenu-items">
+        ${items.map(([itemId, itemTitle]) => `
+          <button type="button" class="config-submenu-item" onclick="showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')">
+            <span>${escapeHtml(itemTitle)}</span>
+            <span class="config-item-arrow" aria-hidden="true">›</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
   `;
+}
+
+function toggleConfigGroup(id) {
+  const group = document.querySelector(`[data-config-group="${id}"]`);
+  if (!group) return;
+  const button = group.querySelector(".config-group-button");
+  const isOpen = group.classList.toggle("open");
+  button?.setAttribute("aria-expanded", String(isOpen));
 }
 
 function showConfigPlaceholder(id, title) {
@@ -359,7 +370,6 @@ function showConfigPlaceholder(id, title) {
   overlay.innerHTML = `
     <div class="config-placeholder-card" role="dialog" aria-modal="true">
       <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
-      <div class="config-placeholder-icon">⚙️</div>
       <h2>${escapeHtml(title)}</h2>
       <p>Esta pantalla es solo un ensayo de la parametrización. Aquí irá la configuración de esta sección.</p>
       <span class="config-placeholder-badge">Próximamente</span>
