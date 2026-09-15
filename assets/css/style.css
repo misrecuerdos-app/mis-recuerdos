@@ -804,6 +804,8 @@ background-position: center;
   object-fit: contain;
   border-radius: 12px;
 }
+
+/*INICIA CAMBIO SUGERIDO POR GROK
 .media-viewer-video {
   width: min(94vw, 1000px);
   height: min(82vh, 760px);
@@ -811,7 +813,21 @@ background-position: center;
   border: 0;
   background: #000000;
   border-radius: 12px;
+  /* Help the Drive player receive pointer / touch events correctly */
+  pointer-events: auto;
+  touch-action: manipulation;
 }
+
+/* Prevent parent containers from blocking the iframe */
+.media-viewer-media-wrap.is-video {
+  pointer-events: auto;
+}
+
+.media-viewer-media-wrap.is-video .media-viewer-actions {
+  z-index: 5;
+  pointer-events: auto;
+}
+/*TERMINA CAMBIO SUGERIDO POR GROK
 
 @media (max-width: 480px) {
   .media-viewer {
