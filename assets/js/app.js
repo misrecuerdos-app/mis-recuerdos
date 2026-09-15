@@ -281,6 +281,37 @@ function openSideMenu() {
         <button class="side-menu-close" onclick="closeSideMenu()" aria-label="Cerrar">×</button>
       </div>
 
+      <section class="config-preview-card">
+        <div class="config-preview-title">⚙️ <strong>Configuración del evento</strong></div>
+        <p class="config-preview-note">Ensayo de las opciones de parametrización. Por ahora son solo visuales.</p>
+
+        <div class="config-menu-group">
+          <div class="config-menu-heading">🎪 Evento</div>
+          ${configMenuItem("event-data", "📅", "Datos del evento", "Nombre, fecha, mensaje y datos generales")}
+          ${configMenuItem("sections", "🧩", "Secciones", "Nombres, orden e iconos de cada sección")}
+          ${configMenuItem("guests", "👥", "Lista de invitados", "Personas, nombres y datos para vincular Momentos")}
+        </div>
+
+        <div class="config-menu-group">
+          <div class="config-menu-heading">🎨 Apariencia</div>
+          ${configMenuItem("branding", "✨", "Identidad visual", "Logo, colores, tipografía y nombre de la app")}
+          ${configMenuItem("images", "🖼️", "Imágenes e iconos", "Portada, imágenes de secciones e iconos")}
+        </div>
+
+        <div class="config-menu-group">
+          <div class="config-menu-heading">☁️ Operación</div>
+          ${configMenuItem("drive", "📁", "Almacenamiento", "Cuenta de Google Drive y carpeta del evento")}
+          ${configMenuItem("features", "⭐", "Funciones de la aplicación", "Galería, Likes, comentarios, Momentos y compartir")}
+          ${configMenuItem("access", "🔐", "Acceso y permisos", "Inicio de sesión, invitados y permisos del administrador")}
+        </div>
+
+        <div class="config-menu-group">
+          <div class="config-menu-heading">🛠️ Administración</div>
+          ${configMenuItem("product", "📦", "Información del producto", "Versión, soporte y datos de Mis Recuerdos")}
+          ${configMenuItem("backup", "💾", "Respaldo y mantenimiento", "Configuración de respaldo y mantenimiento del evento")}
+        </div>
+      </section>
+
       <section class="session-card">
         <h2>Sesión actual</h2>
         ${user ? `
@@ -303,6 +334,38 @@ function openSideMenu() {
 
   document.body.appendChild(menu);
   requestAnimationFrame(() => menu.classList.add("open"));
+}
+
+function configMenuItem(id, icon, title, description) {
+  return `
+    <button type="button" class="config-menu-item" onclick="showConfigPlaceholder('${id}', '${escapeHtml(title)}')">
+      <span class="config-menu-icon">${icon}</span>
+      <span class="config-menu-copy">
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(description)}</small>
+      </span>
+      <span class="config-menu-arrow">›</span>
+    </button>
+  `;
+}
+
+function showConfigPlaceholder(id, title) {
+  // Ensayo visual: ninguna opción modifica todavía la configuración real.
+  const existing = document.getElementById("configPlaceholder");
+  existing?.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "configPlaceholder";
+  overlay.className = "config-placeholder-overlay";
+  overlay.innerHTML = `
+    <div class="config-placeholder-card" role="dialog" aria-modal="true">
+      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
+      <div class="config-placeholder-icon">⚙️</div>
+      <h2>${escapeHtml(title)}</h2>
+      <p>Esta pantalla es solo un ensayo de la parametrización. Aquí irá la configuración de esta sección.</p>
+      <span class="config-placeholder-badge">Próximamente</span>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 }
 
 function closeSideMenu() {
