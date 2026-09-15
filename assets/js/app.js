@@ -772,7 +772,7 @@ function renderGalleryItems(items, showInfo = true) {
       }).filter(Boolean).join(" ");
       bottomInfo = `<div class="live-card-metrics"><span>✨ ${Number(item.moments || 0)}</span>${icons ? `<span>${icons}</span>` : ""}</div>`;
     } else {
-      bottomInfo = showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.uploadedAt)}</div></div>` : "";
+      bottomInfo = showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.activityAt || item.uploadedAt)}</div></div>` : "";
     }
 
     return `
