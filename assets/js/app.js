@@ -9,6 +9,8 @@ let currentInfoTopic = null;
 let viewerCommentsRequestToken = 0;
 let viewerPeopleRequestToken = 0;
 let viewerPeopleData = null;
+let viewerPeoplePendingPoint = null;
+let viewerPeopleTaggingMode = false;
 function requireGoogleIdentity() {
   const identity = getGoogleIdentity();
 
@@ -429,6 +431,7 @@ function galleryTopMenu(active = "recent") {
       <button class="gallery-top-button ${active === "recent" ? "active" : ""}" onclick="showGalleryMode('recent')">🕒 Reciente</button>
       <button class="gallery-top-button ${active === "trend" ? "active" : ""}" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
       <button class="gallery-top-button ${active === "moments" ? "active" : ""}" onclick="showGalleryMode('moments')">✨ Momentos</button>
+      <button class="gallery-top-button ${active === "people" ? "active" : ""}" onclick="showGalleryMode('people')">👤 Personas</button>
     </div>
   `;
 }
@@ -882,6 +885,22 @@ function showGalleryMode(mode) {
   const activeButton = document.querySelector(`.gallery-top-button[onclick="showGalleryMode('${mode}')"]`);
   activeButton?.classList.add("active");
 
+  if (mode === "people") {
+    galleryBody.innerHTML = `
+      <div class="live-heading">
+        <h2>👤 Personas</h2>
+        <p>Busca a una persona y descubre los recuerdos donde aparece.</p>
+      </div>
+      <div class="gallery-people-search-panel">
+        <input id="galleryPeopleSearch" class="gallery-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="filterGalleryPeople()" aria-label="Buscar invitado">
+        <div id="galleryPeopleList" class="gallery-people-list">Cargando invitados…</div>
+      </div>
+      <div id="galleryPeopleResults" class="gallery-people-results" hidden></div>
+    `;
+    loadGalleryPeople();
+    return;
+  }
+
   if (mode === "trend") {
     galleryBody.innerHTML = `
       <div class="live-heading">
@@ -937,6 +956,7 @@ function showGallerySections() {
       <button type="button" onclick="showGalleryMode('recent')">Reciente</button>
       <button type="button" onclick="showGalleryMode('trend')">🔥 Tendencia</button>
       <button type="button" onclick="showGalleryMode('moments')">✨ Momentos</button>
+      <button type="button" onclick="showGalleryMode('people')">👤 Personas</button>
     </div>
     <div id="gallerySectionsList" class="gallery-sections-list">Cargando secciones...</div>
   `;
@@ -1092,6 +1112,52 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
     container.innerHTML = `<div class="live-error">No fue posible cargar los recuerdos. <button type="button" class="gallery-retry-button" onclick="loadGalleryItems(galleryContext.url, galleryContext.showInfo, galleryContext.sort, galleryContext.mode, galleryContext.page, galleryContext.momentType)">Reintentar</button></div>`;
     console.error(error);
   }
+}
+
+let galleryPeopleCache = [];
+
+async function loadGalleryPeople() {
+  const list = document.getElementById("galleryPeopleList");
+  if (!list) return;
+  try {
+    const response = await fetch(`${UPLOAD_ENDPOINT}?action=peopleList&_=${Date.now()}`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible cargar los invitados.");
+    galleryPeopleCache = Array.isArray(result.people) ? result.people : [];
+    filterGalleryPeople();
+  } catch (error) {
+    list.innerHTML = `<div class="live-error">No fue posible cargar la lista de invitados.</div>`;
+    console.error(error);
+  }
+}
+
+function filterGalleryPeople() {
+  const list = document.getElementById("galleryPeopleList");
+  if (!list) return;
+  const q = String(document.getElementById("galleryPeopleSearch")?.value || "").trim().toLocaleLowerCase();
+  const people = galleryPeopleCache.filter(person => `${person.nombreInvitado || ""} ${person.nombreFamilia || ""}`.toLocaleLowerCase().includes(q));
+  list.innerHTML = people.length ? people.map(person => `
+    <button type="button" class="gallery-person-option" onclick="openGalleryPersonResults('${person.invitadoId}')">
+      <strong>${escapeHtml(person.nombreInvitado || "Invitado")}</strong>
+      ${person.nombreFamilia ? `<small>${escapeHtml(person.nombreFamilia)}</small>` : ""}
+    </button>
+  `).join("") : `<div class="gallery-people-empty">No encontramos personas con ese nombre.</div>`;
+}
+
+async function openGalleryPersonResults(invitadoId) {
+  const person = galleryPeopleCache.find(p => p.invitadoId === invitadoId);
+  const results = document.getElementById("galleryPeopleResults");
+  if (!results || !person) return;
+  results.hidden = false;
+  results.innerHTML = `<div class="gallery-person-results-header"><button type="button" onclick="closeGalleryPersonResults()">← Personas</button><h3>🏷️ ${escapeHtml(person.nombreInvitado)}</h3></div><div id="liveContent" class="live-content"><div class="gallery-page-loading"><span class="gallery-loading-spinner"></span><span>Cargando recuerdos…</span></div></div><div id="galleryPagination"></div>`;
+  document.querySelector(".gallery-people-search-panel")?.setAttribute("hidden", "hidden");
+  galleryContext = { ...galleryContext, mode: "person", sort: "recent", page: 1, momentType: "" };
+  await loadGalleryItems(`${UPLOAD_ENDPOINT}?action=personItems&invitadoId=${encodeURIComponent(invitadoId)}`, true, "recent", "person", 1, "");
+}
+function closeGalleryPersonResults() {
+  document.getElementById("galleryPeopleResults")?.setAttribute("hidden", "hidden");
+  document.querySelector(".gallery-people-search-panel")?.removeAttribute("hidden");
+  liveItems = [];
 }
 
 function renderGalleryPagination() {
@@ -1522,51 +1588,25 @@ function formatVideoTime(seconds) {
 
 function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
+  const tags = Array.isArray(item.personTags) ? item.personTags : [];
+  const photoTags = !isVideo ? tags.filter(tag => Number.isFinite(Number(tag.x)) && Number.isFinite(Number(tag.y))) : [];
+  const videoTags = isVideo ? tags : [];
   return `
-    <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
+    <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}" data-tagging-mode="false">
       ${isVideo
-        ? `<iframe
-            class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal"
-            allow="autoplay; fullscreen"
-            allowfullscreen
-            title="Video del recuerdo"
-          ></iframe>`
-        : `<img
-            class="media-viewer-image"
-            src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-            alt=""
-          >`
+        ? `<iframe class="media-viewer-video" src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal" allow="autoplay; fullscreen" allowfullscreen title="Video del recuerdo"></iframe>\n           ${videoTags.length ? `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay"><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${videoTags.map(t => escapeHtml(t.nombreInvitado || "Invitado")).join(" · ")}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" hidden>🏷️ Personas</button>` : ""}`
+        : `<img class="media-viewer-image" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600" alt="" draggable="false">\n           <div class="viewer-photo-tags" aria-label="Personas etiquetadas">${photoTags.map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%" title="${escapeHtml(tag.nombreInvitado || "Invitado")}">${escapeHtml(tag.nombreInvitado || "Invitado")}</span>`).join("")}</div>\n           <div class="viewer-photo-tagging-hint" hidden>Toca la foto para etiquetar</div>`
       }
       <div class="media-viewer-actions">
-        <button
-          class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}"
-          type="button"
-          onclick="handleViewerLike(event)"
-          aria-label="Dar Like"
-          title="Dar Like"
-        >❤️</button>
-        <button
-          class="media-viewer-like-count"
-          type="button"
-          onclick="showViewerLikes(event)"
-          aria-label="Ver quién dio Like"
-          title="Ver quién dio Like"
-        >${Number(item.likes || 0)}</button>
+        <button class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}" type="button" onclick="handleViewerLike(event)" aria-label="Dar Like" title="Dar Like">❤️</button>
+        <button class="media-viewer-like-count" type="button" onclick="showViewerLikes(event)" aria-label="Ver quién dio Like" title="Ver quién dio Like">${Number(item.likes || 0)}</button>
         <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
-        <button
-          class="media-viewer-share-button"
-          type="button"
-          onclick="handleViewerShare(event)"
-          aria-label="Compartir recuerdo"
-          title="Compartir recuerdo"
-        >📤 Compartir</button>
+        <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
       </div>
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
 }
-
 function handleViewerDoubleTap(event) {
   event.preventDefault();
   event.stopPropagation();
@@ -1610,16 +1650,17 @@ function openViewer(index, openPanel = "none") {
       <section class="viewer-people-panel" aria-label="Personas">
         <div class="viewer-people-bar">
           <div class="viewer-people-heading">
-            <strong>👤 Personas</strong>
+            <strong>🏷️ Personas</strong>
             <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
           </div>
           <button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">🏷️ Etiquetar personas</button>
         </div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
-            <strong>¿Quién aparece en este recuerdo?</strong>
+            <strong id="viewerPeoplePickerTitle">¿Quién aparece en este recuerdo?</strong>
             <button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar selección de personas">×</button>
           </div>
+          <div id="viewerPeoplePointHint" class="viewer-people-point-hint" hidden>Toca una persona en la foto para colocar su etiqueta.</div>
           <input id="viewerPeopleSearch" class="viewer-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="renderViewerPeoplePicker()" aria-label="Buscar invitado">
           <div id="viewerPeopleSelected" class="viewer-people-selected"></div>
           <div id="viewerPeopleList" class="viewer-people-list"><div class="viewer-people-loading">Cargando invitados…</div></div>
@@ -1687,7 +1728,7 @@ function openViewer(index, openPanel = "none") {
   }
 
   const mediaWrap = viewer.querySelector(".media-viewer-media-wrap.is-image");
-  if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
+  if (mediaWrap) { mediaWrap.ondblclick = handleViewerDoubleTap; setupPhotoTagging(mediaWrap); }
 }
 
 function closeViewerComments() {
@@ -1734,6 +1775,7 @@ async function loadViewerPeople(uuid) {
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === uuid) item.personTags = viewerPeopleData.tags;
     renderViewerPeopleSummary(viewerPeopleData.tags);
+    renderViewerPeopleOverlays(item);
     renderViewerPeoplePicker();
   } catch (error) {
     console.error("Personas:", error);
@@ -1744,42 +1786,58 @@ async function loadViewerPeople(uuid) {
 }
 
 function toggleViewerPeople() {
+  const item = liveItems[currentViewerIndex];
   const picker = document.getElementById("viewerPeoplePicker");
-  if (!picker) return;
+  if (!picker || !item) return;
   const isOpen = !picker.hidden;
-  picker.hidden = isOpen;
-  if (!isOpen) {
-    viewerPeopleData = viewerPeopleData || { uuid: "", people: [], tags: [] };
-    viewerPeopleData.draftIds = new Set(
-      (viewerPeopleData.tags || [])
-        .filter(tag => tag.byMe)
-        .map(tag => tag.invitadoId)
-    );
+  if (isOpen) { closeViewerPeople(); return; }
+  viewerPeopleData = viewerPeopleData || { uuid: item.uuid, people: [], tags: [] };
+  viewerPeopleData.draftTags = (viewerPeopleData.tags || []).filter(Boolean).map(tag => ({
+    invitadoId: tag.invitadoId, nombreInvitado: tag.nombreInvitado, nombreFamilia: tag.nombreFamilia,
+    x: Number.isFinite(Number(tag.x)) ? Number(tag.x) : null,
+    y: Number.isFinite(Number(tag.y)) ? Number(tag.y) : null
+  }));
+  viewerPeopleTaggingMode = !item.mimeType.startsWith("video/");
+  viewerPeoplePendingPoint = null;
+  if (item.mimeType.startsWith("video/")) {
+    picker.hidden = false;
+    const hint = document.getElementById("viewerPeoplePointHint");
+    const title = document.getElementById("viewerPeoplePickerTitle");
+    if (hint) hint.hidden = true;
+    if (title) title.textContent = "¿Quién aparece en este video?";
     renderViewerPeoplePicker();
-    window.setTimeout(() => document.getElementById("viewerPeopleSearch")?.focus(), 50);
+    window.setTimeout(() => document.getElementById("viewerPeopleSearch")?.focus(), 80);
+  } else {
+    picker.hidden = true;
+    const hint = document.querySelector(".viewer-photo-tagging-hint");
+    if (hint) { hint.hidden = false; hint.textContent = "Toca sobre una persona para etiquetarla"; }
+    document.querySelector(".media-viewer-media-wrap.is-image")?.classList.add("tagging-active");
   }
 }
 
 function closeViewerPeople() {
   const picker = document.getElementById("viewerPeoplePicker");
   if (picker) picker.hidden = true;
+  viewerPeoplePendingPoint = null;
+  viewerPeopleTaggingMode = false;
+  document.querySelector(".media-viewer-media-wrap.is-image")?.classList.remove("tagging-active");
+  const hint = document.querySelector(".viewer-photo-tagging-hint");
+  if (hint) hint.hidden = true;
 }
 
 function syncViewerPeopleDraftFromDom() {
   if (!viewerPeopleData) return;
-  if (!(viewerPeopleData.draftIds instanceof Set)) {
-    viewerPeopleData.draftIds = new Set(
-      (viewerPeopleData.tags || [])
-        .filter(tag => tag.byMe)
-        .map(tag => tag.invitadoId)
-    );
-  }
+  if (!Array.isArray(viewerPeopleData.draftTags)) viewerPeopleData.draftTags = [];
   document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
-    if (input.checked) viewerPeopleData.draftIds.add(input.value);
-    else viewerPeopleData.draftIds.delete(input.value);
+    const id = input.value;
+    const existing = viewerPeopleData.draftTags.find(tag => tag.invitadoId === id);
+    if (input.checked && !existing) {
+      const person = (viewerPeopleData.people || []).find(p => p.invitadoId === id);
+      viewerPeopleData.draftTags.push({ invitadoId: id, nombreInvitado: person?.nombreInvitado || "Invitado", nombreFamilia: person?.nombreFamilia || "", x: viewerPeoplePendingPoint?.x ?? null, y: viewerPeoplePendingPoint?.y ?? null });
+    }
+    if (!input.checked && existing) viewerPeopleData.draftTags = viewerPeopleData.draftTags.filter(tag => tag.invitadoId !== id);
   });
 }
-
 function renderViewerPeopleSelected() {
   const selectedBox = document.getElementById("viewerPeopleSelected");
   if (!selectedBox || !viewerPeopleData) return;
@@ -1790,12 +1848,13 @@ function renderViewerPeopleSelected() {
   });
 
   const lockedTags = (viewerPeopleData.tags || []).filter(tag => !tag.byMe);
-  const selectedIds = Array.from(viewerPeopleData.draftIds || []);
+  const selectedTags = Array.isArray(viewerPeopleData.draftTags) ? viewerPeopleData.draftTags : [];
 
-  const chips = selectedIds.map(id => {
-    const person = byId[id];
-    const name = person?.nombreInvitado || viewerPeopleData.tags.find(tag => tag.invitadoId === id)?.nombreInvitado || "Invitado";
-    return `<span class="viewer-people-selected-chip">🏷️ ${escapeHtml(name)}</span>`;
+  const chips = selectedTags.map(tag => {
+    const person = byId[tag.invitadoId];
+    const name = person?.nombreInvitado || tag.nombreInvitado || "Invitado";
+    const pos = Number.isFinite(Number(tag.x)) && Number.isFinite(Number(tag.y)) ? ` <small>${Math.round(Number(tag.x))}%, ${Math.round(Number(tag.y))}%</small>` : "";
+    return `<span class="viewer-people-selected-chip">🏷️ ${escapeHtml(name)}${pos}<button type="button" onclick="removeDraftPerson(\'${tag.invitadoId}\')" aria-label="Quitar etiqueta">×</button></span>`;
   });
 
   lockedTags.forEach(tag => {
@@ -1833,7 +1892,7 @@ function renderViewerPeoplePicker() {
   list.innerHTML = filtered.map(person => {
     const tag = tagsById[person.invitadoId];
     const locked = Boolean(tag && !tag.byMe);
-    const checked = locked || viewerPeopleData.draftIds.has(person.invitadoId);
+    const checked = locked || (viewerPeopleData.draftTags || []).some(tag => tag.invitadoId === person.invitadoId);
     return `
       <label class="viewer-person-option ${locked ? "locked" : ""}">
         <input
@@ -1854,20 +1913,40 @@ function renderViewerPeoplePicker() {
 
   document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
     input.addEventListener("change", () => {
-      if (input.checked) viewerPeopleData.draftIds.add(input.value);
-      else viewerPeopleData.draftIds.delete(input.value);
+      if (input.checked) {
+        const person = (viewerPeopleData.people || []).find(p => p.invitadoId === input.value);
+        if (!viewerPeopleData.draftTags.some(tag => tag.invitadoId === input.value)) {
+          viewerPeopleData.draftTags.push({
+            invitadoId: input.value,
+            nombreInvitado: person?.nombreInvitado || "Invitado",
+            nombreFamilia: person?.nombreFamilia || "",
+            x: viewerPeoplePendingPoint?.x ?? null,
+            y: viewerPeoplePendingPoint?.y ?? null
+          });
+        }
+        if (viewerPeoplePendingPoint) {
+          viewerPeoplePendingPoint = null;
+          const picker = document.getElementById("viewerPeoplePicker");
+          if (picker) picker.hidden = true;
+          document.querySelector(".viewer-photo-tagging-hint")?.removeAttribute("hidden");
+          renderViewerPeopleOverlays(liveItems[currentViewerIndex]);
+          saveViewerPeople(true);
+        }
+      } else {
+        viewerPeopleData.draftTags = viewerPeopleData.draftTags.filter(tag => tag.invitadoId !== input.value);
+      }
       renderViewerPeopleSelected();
     });
   });
 }
 
-async function saveViewerPeople() {
+async function saveViewerPeople(keepTagging = false) {
   if (!viewerPeopleData?.uuid) return;
   let identity;
   try { identity = requireGoogleIdentity(); } catch (error) { return; }
   const button = document.getElementById("viewerPeopleSave");
   syncViewerPeopleDraftFromDom();
-  const selected = Array.from(viewerPeopleData.draftIds || []);
+  const selected = (viewerPeopleData.draftTags || []).map(tag => ({ invitadoId: tag.invitadoId, x: Number.isFinite(Number(tag.x)) ? Number(tag.x) : null, y: Number.isFinite(Number(tag.y)) ? Number(tag.y) : null }));
   if (button) {
     button.disabled = true;
     button.textContent = "Guardando…";
@@ -1878,21 +1957,19 @@ async function saveViewerPeople() {
       body: JSON.stringify({
         action: "tagPeople",
         uuid: viewerPeopleData.uuid,
-        invitadoIds: selected,
+        tags: selected,
         ...identity
       })
     });
     const result = await response.json();
     if (!result.success) throw new Error(result.error || "No fue posible guardar las personas.");
     viewerPeopleData.tags = Array.isArray(result.tags) ? result.tags : [];
-    viewerPeopleData.draftIds = new Set(
-      viewerPeopleData.tags.filter(tag => tag.byMe).map(tag => tag.invitadoId)
-    );
+    viewerPeopleData.draftTags = viewerPeopleData.tags.map(tag => ({ invitadoId: tag.invitadoId, nombreInvitado: tag.nombreInvitado, nombreFamilia: tag.nombreFamilia, x: tag.x ?? null, y: tag.y ?? null }));
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === viewerPeopleData.uuid) item.personTags = viewerPeopleData.tags;
     renderViewerPeopleSummary(viewerPeopleData.tags);
     renderViewerPeoplePicker();
-    closeViewerPeople();
+    if (!keepTagging) closeViewerPeople();
   } catch (error) {
     console.error("Guardar personas:", error);
     window.alert(error.message || "No fue posible guardar las personas.");
@@ -1918,6 +1995,48 @@ function showNextItem() {
   updateViewerMedia();
 }
 
+function setupPhotoTagging(mediaWrap) {
+  if (!mediaWrap || !mediaWrap.classList.contains("is-image")) return;
+  const image = mediaWrap.querySelector(".media-viewer-image");
+  if (!image) return;
+  mediaWrap.onclick = (event) => {
+    if (!viewerPeopleTaggingMode) return;
+    if (event.target.closest("button")) return;
+    event.preventDefault(); event.stopPropagation();
+    const rect = image.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    viewerPeoplePendingPoint = {
+      x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
+    };
+    const picker = document.getElementById("viewerPeoplePicker");
+    if (picker) picker.hidden = false;
+    const hint = document.getElementById("viewerPeoplePointHint");
+    if (hint) hint.textContent = `Punto seleccionado: ${Math.round(viewerPeoplePendingPoint.x)}%, ${Math.round(viewerPeoplePendingPoint.y)}%. Ahora elige la persona.`;
+    renderViewerPeoplePicker();
+    document.getElementById("viewerPeopleSearch")?.focus();
+  };
+}
+
+function hideViewerVideoPeople(event) {
+  event?.preventDefault?.(); event?.stopPropagation?.();
+  document.getElementById("viewerVideoPeopleOverlay")?.setAttribute("hidden", "hidden");
+  const reopen = document.querySelector(".viewer-video-people-reopen");
+  if (reopen) reopen.hidden = false;
+}
+function showViewerVideoPeople(event) {
+  event?.preventDefault?.(); event?.stopPropagation?.();
+  document.getElementById("viewerVideoPeopleOverlay")?.removeAttribute("hidden");
+  const reopen = document.querySelector(".viewer-video-people-reopen");
+  if (reopen) reopen.hidden = true;
+}
+
+function removeDraftPerson(invitadoId) {
+  if (!viewerPeopleData?.draftTags) return;
+  viewerPeopleData.draftTags = viewerPeopleData.draftTags.filter(tag => tag.invitadoId !== invitadoId);
+  renderViewerPeoplePicker();
+}
+
 function updateViewerMedia() {
   const item = liveItems[currentViewerIndex];
   document.querySelector(".viewer-likes-panel")?.remove();
@@ -1937,7 +2056,7 @@ function updateViewerMedia() {
   if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
 
   const mediaWrap = document.querySelector(".media-viewer-media-wrap.is-image");
-  if (mediaWrap) mediaWrap.ondblclick = handleViewerDoubleTap;
+  if (mediaWrap) { mediaWrap.ondblclick = handleViewerDoubleTap; setupPhotoTagging(mediaWrap); }
 }
 
 async function showViewerLikes(event) {
@@ -2661,3 +2780,20 @@ if (getSharedRecallId()) {
 }
 
 renderApp();
+
+function renderViewerPeopleOverlays(item) {
+  const wrap = document.querySelector('.media-viewer-media-wrap');
+  if (!wrap || !item) return;
+  const tags = Array.isArray(item.personTags) ? item.personTags : [];
+  if (wrap.classList.contains('is-image')) {
+    const layer = wrap.querySelector('.viewer-photo-tags');
+    if (layer) layer.innerHTML = tags.filter(t => Number.isFinite(Number(t.x)) && Number.isFinite(Number(t.y))).map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%">${escapeHtml(tag.nombreInvitado || 'Invitado')}</span>`).join('');
+  } else {
+    const existing = wrap.querySelector('.viewer-video-people-overlay');
+    const names = tags.map(t => escapeHtml(t.nombreInvitado || 'Invitado')).join(' · ');
+    if (names) {
+      if (existing) { const span=existing.querySelector('span'); if(span) span.innerHTML=`🏷️ ${names}`; existing.hidden=false; }
+      else wrap.insertAdjacentHTML('beforeend', `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay"><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${names}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" hidden>🏷️ Personas</button>`);
+    }
+  }
+}
