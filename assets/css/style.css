@@ -805,7 +805,7 @@ background-position: center;
   border-radius: 12px;
 }
 
-/*INICIA CAMBIO SUGERIDO POR GROK
+/*INICIA CAMBIO SUGERIDO POR GROK*/
 .media-viewer-video {
   width: min(94vw, 1000px);
   height: min(82vh, 760px);
@@ -827,7 +827,7 @@ background-position: center;
   z-index: 5;
   pointer-events: auto;
 }
-/*TERMINA CAMBIO SUGERIDO POR GROK
+/*TERMINA CAMBIO SUGERIDO POR GROK*/
 
 @media (max-width: 480px) {
   .media-viewer {
@@ -2272,7 +2272,7 @@ background-position: center;
     height: 100%;
     max-height: none;
   }
-/* GROKs code starts
+/* GROKs code starts*/
 .media-viewer-video {
   width: 100%;
   height: 100%;
@@ -2290,7 +2290,7 @@ background-position: center;
     border-radius: 0;
   }
 }
-/* GROKs code ends
+/* GROKs code ends*/
   
   .viewer-comments {
     width: 100%;
