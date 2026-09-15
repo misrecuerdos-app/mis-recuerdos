@@ -1613,7 +1613,7 @@ function openViewer(index, openPanel = "none") {
             <strong>👤 Personas</strong>
             <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
           </div>
-          <button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">+ Agregar personas</button>
+          <button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">🏷️ Etiquetar personas</button>
         </div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
@@ -1621,6 +1621,7 @@ function openViewer(index, openPanel = "none") {
             <button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar selección de personas">×</button>
           </div>
           <input id="viewerPeopleSearch" class="viewer-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="renderViewerPeoplePicker()" aria-label="Buscar invitado">
+          <div id="viewerPeopleSelected" class="viewer-people-selected"></div>
           <div id="viewerPeopleList" class="viewer-people-list"><div class="viewer-people-loading">Cargando invitados…</div></div>
           <div class="viewer-people-picker-actions">
             <button type="button" class="viewer-people-cancel" onclick="closeViewerPeople()">Cancelar</button>
@@ -1748,8 +1749,14 @@ function toggleViewerPeople() {
   const isOpen = !picker.hidden;
   picker.hidden = isOpen;
   if (!isOpen) {
+    viewerPeopleData = viewerPeopleData || { uuid: "", people: [], tags: [] };
+    viewerPeopleData.draftIds = new Set(
+      (viewerPeopleData.tags || [])
+        .filter(tag => tag.byMe)
+        .map(tag => tag.invitadoId)
+    );
     renderViewerPeoplePicker();
-    document.getElementById("viewerPeopleSearch")?.focus();
+    window.setTimeout(() => document.getElementById("viewerPeopleSearch")?.focus(), 50);
   }
 }
 
@@ -1758,10 +1765,58 @@ function closeViewerPeople() {
   if (picker) picker.hidden = true;
 }
 
+function syncViewerPeopleDraftFromDom() {
+  if (!viewerPeopleData) return;
+  if (!(viewerPeopleData.draftIds instanceof Set)) {
+    viewerPeopleData.draftIds = new Set(
+      (viewerPeopleData.tags || [])
+        .filter(tag => tag.byMe)
+        .map(tag => tag.invitadoId)
+    );
+  }
+  document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
+    if (input.checked) viewerPeopleData.draftIds.add(input.value);
+    else viewerPeopleData.draftIds.delete(input.value);
+  });
+}
+
+function renderViewerPeopleSelected() {
+  const selectedBox = document.getElementById("viewerPeopleSelected");
+  if (!selectedBox || !viewerPeopleData) return;
+
+  const byId = {};
+  (viewerPeopleData.people || []).forEach(person => {
+    byId[person.invitadoId] = person;
+  });
+
+  const lockedTags = (viewerPeopleData.tags || []).filter(tag => !tag.byMe);
+  const selectedIds = Array.from(viewerPeopleData.draftIds || []);
+
+  const chips = selectedIds.map(id => {
+    const person = byId[id];
+    const name = person?.nombreInvitado || viewerPeopleData.tags.find(tag => tag.invitadoId === id)?.nombreInvitado || "Invitado";
+    return `<span class="viewer-people-selected-chip">🏷️ ${escapeHtml(name)}</span>`;
+  });
+
+  lockedTags.forEach(tag => {
+    const name = tag.nombreInvitado || byId[tag.invitadoId]?.nombreInvitado || "Invitado";
+    chips.push(`<span class="viewer-people-selected-chip viewer-people-selected-chip-locked">🏷️ ${escapeHtml(name)}</span>`);
+  });
+
+  selectedBox.innerHTML = chips.length
+    ? `<div class="viewer-people-selected-title">Seleccionadas</div><div class="viewer-people-selected-chips">${chips.join("")}</div>`
+    : `<div class="viewer-people-selected-empty">Aún no has seleccionado personas.</div>`;
+}
+
 function renderViewerPeoplePicker() {
   const list = document.getElementById("viewerPeopleList");
   const search = document.getElementById("viewerPeopleSearch");
   if (!list || !viewerPeopleData) return;
+
+  syncViewerPeopleDraftFromDom();
+  if (!(viewerPeopleData.draftIds instanceof Set)) viewerPeopleData.draftIds = new Set();
+  renderViewerPeopleSelected();
+
   const query = String(search?.value || "").trim().toLocaleLowerCase();
   const tagsById = {};
   viewerPeopleData.tags.forEach(tag => { tagsById[tag.invitadoId] = tag; });
@@ -1777,9 +1832,8 @@ function renderViewerPeoplePicker() {
 
   list.innerHTML = filtered.map(person => {
     const tag = tagsById[person.invitadoId];
-    const mine = Boolean(tag?.byMe);
-    const checked = Boolean(tag);
-    const locked = checked && !mine;
+    const locked = Boolean(tag && !tag.byMe);
+    const checked = locked || viewerPeopleData.draftIds.has(person.invitadoId);
     return `
       <label class="viewer-person-option ${locked ? "locked" : ""}">
         <input
@@ -1793,10 +1847,18 @@ function renderViewerPeoplePicker() {
           <strong>${escapeHtml(person.nombreInvitado || "Invitado")}</strong>
           ${person.nombreFamilia ? `<small>${escapeHtml(person.nombreFamilia)}</small>` : ""}
         </span>
-        ${locked ? `<span class="viewer-person-locked">Ya agregada</span>` : ""}
+        ${locked ? `<span class="viewer-person-locked">Ya etiquetada</span>` : ""}
       </label>
     `;
   }).join("");
+
+  document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
+    input.addEventListener("change", () => {
+      if (input.checked) viewerPeopleData.draftIds.add(input.value);
+      else viewerPeopleData.draftIds.delete(input.value);
+      renderViewerPeopleSelected();
+    });
+  });
 }
 
 async function saveViewerPeople() {
@@ -1804,16 +1866,8 @@ async function saveViewerPeople() {
   let identity;
   try { identity = requireGoogleIdentity(); } catch (error) { return; }
   const button = document.getElementById("viewerPeopleSave");
-  const selectedSet = new Set(
-    (viewerPeopleData.tags || [])
-      .filter(tag => tag.byMe)
-      .map(tag => tag.invitadoId)
-  );
-  document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
-    if (input.checked) selectedSet.add(input.value);
-    else selectedSet.delete(input.value);
-  });
-  const selected = Array.from(selectedSet);
+  syncViewerPeopleDraftFromDom();
+  const selected = Array.from(viewerPeopleData.draftIds || []);
   if (button) {
     button.disabled = true;
     button.textContent = "Guardando…";
@@ -1831,6 +1885,9 @@ async function saveViewerPeople() {
     const result = await response.json();
     if (!result.success) throw new Error(result.error || "No fue posible guardar las personas.");
     viewerPeopleData.tags = Array.isArray(result.tags) ? result.tags : [];
+    viewerPeopleData.draftIds = new Set(
+      viewerPeopleData.tags.filter(tag => tag.byMe).map(tag => tag.invitadoId)
+    );
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === viewerPeopleData.uuid) item.personTags = viewerPeopleData.tags;
     renderViewerPeopleSummary(viewerPeopleData.tags);
