@@ -1521,28 +1521,20 @@ function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
-
-${isVideo
-        ? `<video
-             class="media-viewer-video"
-             controls
-             playsinline
-             preload="metadata"
-             poster="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1280"
-           >
-             <source
-               src="https://drive.google.com/uc?export=download&id=${item.fileId}&confirm=t"
-               type="video/mp4"
-             >
-             Tu navegador no soporta la reproducción de video.
-           </video>`
+      ${isVideo
+        ? `<iframe
+            class="media-viewer-video"
+            src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal"
+            allow="autoplay; fullscreen"
+            allowfullscreen
+            title="Video del recuerdo"
+          ></iframe>`
         : `<img
-             class="media-viewer-image"
-             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-             alt=""
-           >`
+            class="media-viewer-image"
+            src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
+            alt=""
+          >`
       }
-           
       <div class="media-viewer-actions">
         <button
           class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}"
