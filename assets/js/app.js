@@ -279,27 +279,55 @@ function openSideMenu() {
     <aside class="side-menu-panel" aria-label="Menú principal">
       <div class="side-menu-header">
         <div>
-          <strong>${escapeHtml(AppState.app.name)}</strong>
-          <span>v${escapeHtml(AppState.app.version)}</span>
+          <strong>Configuración</strong>
+          <span>Mis Recuerdos</span>
         </div>
         <button class="side-menu-close" onclick="closeSideMenu()" aria-label="Cerrar">×</button>
       </div>
 
+      <nav class="config-navigation" aria-label="Opciones de configuración">
+        <button type="button" class="config-home-item" onclick="closeSideMenu()">
+          <span>Inicio</span>
+        </button>
+
+        ${configMenuGroup("event", "Evento", [
+          ["event-data", "Datos del evento"],
+          ["sections", "Secciones"],
+          ["guests", "Lista de invitados"]
+        ])}
+
+        ${configMenuGroup("appearance", "Apariencia", [
+          ["branding", "Identidad visual"],
+          ["images", "Imágenes e iconos"]
+        ])}
+
+        ${configMenuGroup("operation", "Operación", [
+          ["drive", "Almacenamiento"],
+          ["features", "Funciones de la aplicación"],
+          ["access", "Acceso y permisos"]
+        ])}
+
+        ${configMenuGroup("admin", "Administración", [
+          ["product", "Información del producto"],
+          ["backup", "Respaldo y mantenimiento"]
+        ])}
+      </nav>
+
       <section class="session-card">
-        <h2>Sesión actual</h2>
+        <h2>Sesión</h2>
         ${user ? `
           <div class="session-person">
-            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar">👤</div>`}
+            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar"></div>`}
             <div>
               <strong>${escapeHtml(user.name || "Usuario")}</strong>
               <span>${escapeHtml(user.email || "Correo no disponible")}</span>
             </div>
           </div>
-          <button class="session-action primary" onclick="Auth.changeAccount()">Cambiar cuenta</button>
+          <button class="session-action" onclick="Auth.changeAccount()">Cambiar cuenta</button>
           <button class="session-action" onclick="Auth.logout()">Cerrar sesión</button>
         ` : `
           <p>No hay una sesión iniciada.</p>
-          <button class="session-action primary" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
+          <button class="session-action" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
         `}
       </section>
     </aside>
@@ -307,6 +335,50 @@ function openSideMenu() {
 
   document.body.appendChild(menu);
   requestAnimationFrame(() => menu.classList.add("open"));
+}
+
+function configMenuGroup(id, title, items) {
+  return `
+    <section class="config-submenu" data-config-group="${id}">
+      <button type="button" class="config-group-button" aria-expanded="false" onclick="toggleConfigGroup('${id}')">
+        <span>${escapeHtml(title)}</span>
+        <span class="config-group-chevron" aria-hidden="true">›</span>
+      </button>
+      <div class="config-submenu-items">
+        ${items.map(([itemId, itemTitle]) => `
+          <button type="button" class="config-submenu-item" onclick="showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')">
+            <span>${escapeHtml(itemTitle)}</span>
+            <span class="config-item-arrow" aria-hidden="true">›</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function toggleConfigGroup(id) {
+  const group = document.querySelector(`[data-config-group="${id}"]`);
+  if (!group) return;
+  const button = group.querySelector(".config-group-button");
+  const isOpen = group.classList.toggle("open");
+  button?.setAttribute("aria-expanded", String(isOpen));
+}
+
+function showConfigPlaceholder(id, title) {
+  const existing = document.getElementById("configPlaceholder");
+  existing?.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "configPlaceholder";
+  overlay.className = "config-placeholder-overlay";
+  overlay.innerHTML = `
+    <div class="config-placeholder-card" role="dialog" aria-modal="true">
+      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
+      <h2>${escapeHtml(title)}</h2>
+      <p>Esta pantalla forma parte de la parametrización de Mis Recuerdos. Aquí irá la configuración de esta sección.</p>
+      <span class="config-placeholder-badge">Próximamente</span>
+    </div>
+  `;
+  document.body.appendChild(overlay);
 }
 
 function closeSideMenu() {
@@ -1586,16 +1658,48 @@ function formatVideoTime(seconds) {
   return `${minutes}:${secs}`;
 }
 
+const PERSON_TAG_VISIBILITY_KEY = "mis-recuerdos-show-person-tags";
+
+function arePersonTagsVisible() {
+  const stored = localStorage.getItem(PERSON_TAG_VISIBILITY_KEY);
+  return stored !== "false";
+}
+
+function setPersonTagsVisible(visible) {
+  const show = Boolean(visible);
+  localStorage.setItem(PERSON_TAG_VISIBILITY_KEY, String(show));
+  document.querySelectorAll(".viewer-photo-tags").forEach(layer => { layer.hidden = !show; });
+  document.querySelectorAll(".viewer-video-people-overlay").forEach(panel => { panel.hidden = !show; });
+  document.querySelectorAll(".viewer-video-people-reopen").forEach(button => {
+    button.hidden = show;
+  });
+  updatePersonTagsVisibilityButton();
+}
+
+function togglePersonTagsVisibility() {
+  setPersonTagsVisible(!arePersonTagsVisible());
+}
+
+function updatePersonTagsVisibilityButton() {
+  const button = document.getElementById("viewerPersonTagsVisibilityButton");
+  if (!button) return;
+  const visible = arePersonTagsVisible();
+  button.textContent = visible ? "🙈 Ocultar etiquetas" : "👁️ Mostrar etiquetas";
+  button.setAttribute("aria-pressed", String(visible));
+  button.title = visible ? "Ocultar nombres de personas sobre el recuerdo" : "Mostrar nombres de personas etiquetadas";
+}
+
 function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
   const tags = Array.isArray(item.personTags) ? item.personTags : [];
   const photoTags = !isVideo ? tags.filter(tag => Number.isFinite(Number(tag.x)) && Number.isFinite(Number(tag.y))) : [];
   const videoTags = isVideo ? tags : [];
+  const showTags = arePersonTagsVisible();
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}" data-tagging-mode="false">
       ${isVideo
-        ? `<iframe class="media-viewer-video" src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal" allow="autoplay; fullscreen" allowfullscreen title="Video del recuerdo"></iframe>\n           ${videoTags.length ? `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay"><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${videoTags.map(t => escapeHtml(t.nombreInvitado || "Invitado")).join(" · ")}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" hidden>🏷️ Personas</button>` : ""}`
-        : `<img class="media-viewer-image" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600" alt="" draggable="false">\n           <div class="viewer-photo-tags" aria-label="Personas etiquetadas">${photoTags.map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%" title="${escapeHtml(tag.nombreInvitado || "Invitado")}">${escapeHtml(tag.nombreInvitado || "Invitado")}</span>`).join("")}</div>\n           <div class="viewer-photo-tagging-hint" hidden>Toca la foto para etiquetar</div>`
+        ? `<iframe class="media-viewer-video" src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal" allow="autoplay; fullscreen" allowfullscreen title="Video del recuerdo"></iframe>\n           ${videoTags.length ? `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay" ${showTags ? "" : "hidden"}><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${videoTags.map(t => escapeHtml(t.nombreInvitado || "Invitado")).join(" · ")}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" ${showTags ? "hidden" : ""}>🏷️ Personas</button>` : ""}`
+        : `<img class="media-viewer-image" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600" alt="" draggable="false">\n           <div class="viewer-photo-tags" aria-label="Personas etiquetadas" ${showTags ? "" : "hidden"}>${photoTags.map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%" title="${escapeHtml(tag.nombreInvitado || "Invitado")}">${escapeHtml(tag.nombreInvitado || "Invitado")}</span>`).join("")}</div>\n           <div class="viewer-photo-tagging-hint" hidden>Toca la foto para etiquetar</div>`
       }
       <div class="media-viewer-actions">
         <button class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}" type="button" onclick="handleViewerLike(event)" aria-label="Dar Like" title="Dar Like">❤️</button>
@@ -1653,7 +1757,7 @@ function openViewer(index, openPanel = "none") {
             <strong>🏷️ Personas</strong>
             <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
           </div>
-          <button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">🏷️ Etiquetar personas</button>
+          <div class="viewer-people-actions-inline"><button type="button" class="viewer-people-visibility" id="viewerPersonTagsVisibilityButton" onclick="togglePersonTagsVisibility()" aria-pressed="true">🙈 Ocultar etiquetas</button><button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">🏷️ Etiquetar personas</button></div>
         </div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
@@ -1709,6 +1813,7 @@ function openViewer(index, openPanel = "none") {
   `;
 
   document.body.appendChild(viewer);
+  updatePersonTagsVisibilityButton();
   const closeButton = viewer.querySelector(".media-viewer-close");
   closeButton?.addEventListener("click", (event) => {
     event.preventDefault();
@@ -2787,13 +2892,17 @@ function renderViewerPeopleOverlays(item) {
   const tags = Array.isArray(item.personTags) ? item.personTags : [];
   if (wrap.classList.contains('is-image')) {
     const layer = wrap.querySelector('.viewer-photo-tags');
-    if (layer) layer.innerHTML = tags.filter(t => Number.isFinite(Number(t.x)) && Number.isFinite(Number(t.y))).map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%">${escapeHtml(tag.nombreInvitado || 'Invitado')}</span>`).join('');
+    if (layer) { layer.hidden = !arePersonTagsVisible(); layer.innerHTML = tags.filter(t => Number.isFinite(Number(t.x)) && Number.isFinite(Number(t.y))).map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%">${escapeHtml(tag.nombreInvitado || 'Invitado')}</span>`).join(''); }
   } else {
     const existing = wrap.querySelector('.viewer-video-people-overlay');
     const names = tags.map(t => escapeHtml(t.nombreInvitado || 'Invitado')).join(' · ');
     if (names) {
-      if (existing) { const span=existing.querySelector('span'); if(span) span.innerHTML=`🏷️ ${names}`; existing.hidden=false; }
+      if (existing) { const span=existing.querySelector('span'); if(span) span.innerHTML=`🏷️ ${names}`; existing.hidden=!arePersonTagsVisible(); }
       else wrap.insertAdjacentHTML('beforeend', `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay"><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${names}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" hidden>🏷️ Personas</button>`);
+      const overlay = wrap.querySelector(".viewer-video-people-overlay");
+      const reopen = wrap.querySelector(".viewer-video-people-reopen");
+      if (overlay) overlay.hidden = !arePersonTagsVisible();
+      if (reopen) reopen.hidden = arePersonTagsVisible();
     }
   }
 }
