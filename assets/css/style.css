@@ -2587,72 +2587,160 @@ background-position: center;
 }
 
 
-/* Ensayo del menú de parametrización */
-.side-menu-panel { overflow-y: auto; overscroll-behavior: contain; }
-/* Ensayo profesional del menú de configuración */
-.config-preview-card { margin-top:18px; padding:0; border:0; border-radius:0; background:transparent; }
-.config-preview-title, .config-preview-note { display:none; }
-.config-navigation { margin-top:14px; border-top:1px solid #e7e7e7; }
-.config-home-item,
-.config-group-button,
-.config-submenu-item {
-  width:100%;
-  border:0;
-  background:transparent;
-  color:#292929;
-  text-align:left;
-  cursor:pointer;
-  font-family:inherit;
+
+/* v1.0.31 - Personas / Etiquetada: asociación pública con la lista de invitados */
+.viewer-people-panel {
+  width: 100%;
+  border: 1px solid #eadfea;
+  border-radius: 16px;
+  background: #fff;
+  color: #2d2630;
+  overflow: hidden;
 }
-.config-home-item {
-  min-height:48px;
-  padding:0 8px;
-  border-bottom:1px solid #e7e7e7;
-  font-size:14px;
-  font-weight:600;
+
+.viewer-people-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
 }
-.config-submenu { border-bottom:1px solid #e7e7e7; }
-.config-group-button {
-  min-height:50px;
-  padding:0 8px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  font-size:14px;
-  font-weight:600;
+
+.viewer-people-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.config-group-button:hover,
-.config-home-item:hover,
-.config-submenu-item:hover { background:#f7f7f7; }
-.config-group-chevron {
-  color:#777;
-  font-size:21px;
-  line-height:1;
-  transition:transform .16s ease;
+
+.viewer-people-heading strong {
+  flex: 0 0 auto;
+  font-size: 14px;
 }
-.config-submenu.open .config-group-chevron { transform:rotate(90deg); }
-.config-submenu-items {
-  display:none;
-  padding:0 0 7px 14px;
-  background:#fafafa;
+
+.viewer-people-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
-.config-submenu.open .config-submenu-items { display:block; }
-.config-submenu-item {
-  min-height:42px;
-  padding:0 8px 0 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-left:1px solid #dedede;
-  color:#555;
-  font-size:13px;
-  font-weight:400;
+
+.viewer-person-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f5edf3;
+  color: #65455a;
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.config-submenu-item:hover { color:#222; }
-.config-item-arrow { color:#aaa; font-size:17px; }
-.config-placeholder-overlay { position:fixed; inset:0; z-index:12000; display:grid; place-items:center; padding:24px; background:rgba(0,0,0,.42); }
-.config-placeholder-card { position:relative; width:min(340px,100%); padding:30px 24px 26px; border:1px solid #e2e2e2; border-radius:12px; background:#fff; text-align:center; box-shadow:0 18px 55px rgba(0,0,0,.18); }
-.config-placeholder-card h2 { margin-bottom:8px; font-size:19px; color:#292929; }
-.config-placeholder-card p { margin:0 auto 16px; color:#666; font-size:13px; line-height:1.45; }
-.config-placeholder-badge { display:inline-block; padding:5px 10px; border:1px solid #ddd; border-radius:999px; background:#f7f7f7; color:#666; font-size:11px; font-weight:700; }
-.config-placeholder-close { position:absolute; top:10px; right:10px; }
+
+.viewer-people-empty-summary,
+.viewer-people-loading,
+.viewer-people-error {
+  color: #918894;
+  font-size: 11px;
+}
+
+.viewer-people-error { color: #a23b55; }
+
+.viewer-people-add {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid #e2c9d7;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.viewer-people-picker {
+  border-top: 1px solid #eee7ed;
+  background: #fcfafc;
+}
+
+.viewer-people-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  background: #fff;
+}
+
+.viewer-people-picker-header strong { font-size: 13px; }
+
+.viewer-people-search {
+  width: calc(100% - 24px);
+  height: 38px;
+  margin: 0 12px 8px;
+  padding: 0 12px;
+  border: 1px solid #ddd3dc;
+  border-radius: 999px;
+  outline: none;
+  font: inherit;
+  background: #fff;
+}
+
+.viewer-people-search:focus { border-color: var(--color-primary); }
+
+.viewer-people-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 0 10px 8px;
+}
+
+.viewer-person-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 8px;
+  border-bottom: 1px solid #eee7ed;
+  cursor: pointer;
+}
+
+.viewer-person-option.locked { cursor: default; opacity: .72; }
+.viewer-person-option input { width: 17px; height: 17px; accent-color: var(--color-primary); }
+.viewer-person-option-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.viewer-person-option-main strong { font-size: 12px; }
+.viewer-person-option-main small { color: #918894; font-size: 10px; }
+.viewer-person-locked { color: #918894; font-size: 9px; font-weight: 700; }
+.viewer-people-no-results { padding: 18px 8px; color: #918894; text-align: center; font-size: 12px; }
+
+.viewer-people-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid #eee7ed;
+  background: #fff;
+}
+
+.viewer-people-cancel,
+.viewer-people-save {
+  min-height: 36px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.viewer-people-cancel { border: 1px solid #ddd3dc; background: #fff; color: #6e6170; }
+.viewer-people-save { border: 0; background: var(--color-primary); color: #fff; }
+.viewer-people-save:disabled { opacity: .6; cursor: wait; }
+
+@media (max-width: 760px) {
+  .viewer-people-bar { align-items: flex-start; }
+  .viewer-people-heading { flex: 1; }
+  .viewer-people-add { font-size: 11px; padding: 7px 9px; }
+  .viewer-people-list { max-height: 34dvh; }
+}
