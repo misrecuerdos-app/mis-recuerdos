@@ -1522,7 +1522,6 @@ function createViewerMedia(item) {
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
 
-/* GROKs code starts*/
 ${isVideo
         ? `<video
              class="media-viewer-video"
@@ -1543,8 +1542,7 @@ ${isVideo
              alt=""
            >`
       }
-      /* GROKs code ends*/
-     
+           
       <div class="media-viewer-actions">
         <button
           class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}"
