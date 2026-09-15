@@ -2589,22 +2589,70 @@ background-position: center;
 
 /* Ensayo del menú de parametrización */
 .side-menu-panel { overflow-y: auto; overscroll-behavior: contain; }
-.config-preview-card { margin-top:18px; padding:16px; border:1px solid #eadfea; border-radius:18px; background:#fff; }
-.config-preview-title { display:flex; align-items:center; gap:8px; font-size:17px; }
-.config-preview-note { margin:7px 0 14px; color:#7a6e7b; font-size:12px; line-height:1.4; }
-.config-menu-group { margin-top:15px; }
-.config-menu-heading { margin:0 4px 7px; color:#8b7e8c; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-.config-menu-item { width:100%; min-height:58px; display:grid; grid-template-columns:34px 1fr 18px; align-items:center; gap:8px; padding:9px 8px; border:0; border-radius:12px; background:transparent; color:#4b3b4b; text-align:left; cursor:pointer; }
-.config-menu-item:hover, .config-menu-item:active { background:#f8f1f6; }
-.config-menu-icon { width:32px; height:32px; display:grid; place-items:center; border-radius:10px; background:#f5edf4; font-size:17px; }
-.config-menu-copy strong, .config-menu-copy small { display:block; }
-.config-menu-copy strong { font-size:13px; }
-.config-menu-copy small { margin-top:2px; color:#8a7d89; font-size:10.5px; line-height:1.25; }
-.config-menu-arrow { color:#aa9cab; font-size:22px; line-height:1; }
-.config-placeholder-overlay { position:fixed; inset:0; z-index:12000; display:grid; place-items:center; padding:24px; background:rgba(20,12,23,.55); }
-.config-placeholder-card { position:relative; width:min(340px,100%); padding:30px 24px 26px; border-radius:20px; background:#fff; text-align:center; box-shadow:0 18px 55px rgba(0,0,0,.25); }
-.config-placeholder-icon { font-size:34px; margin-bottom:8px; }
-.config-placeholder-card h2 { margin-bottom:8px; font-size:20px; }
-.config-placeholder-card p { margin:0 auto 16px; color:#746875; font-size:13px; line-height:1.45; }
-.config-placeholder-badge { display:inline-block; padding:6px 11px; border-radius:999px; background:#f4eaf2; color:var(--color-primary); font-size:11px; font-weight:800; }
+/* Ensayo profesional del menú de configuración */
+.config-preview-card { margin-top:18px; padding:0; border:0; border-radius:0; background:transparent; }
+.config-preview-title, .config-preview-note { display:none; }
+.config-navigation { margin-top:14px; border-top:1px solid #e7e7e7; }
+.config-home-item,
+.config-group-button,
+.config-submenu-item {
+  width:100%;
+  border:0;
+  background:transparent;
+  color:#292929;
+  text-align:left;
+  cursor:pointer;
+  font-family:inherit;
+}
+.config-home-item {
+  min-height:48px;
+  padding:0 8px;
+  border-bottom:1px solid #e7e7e7;
+  font-size:14px;
+  font-weight:600;
+}
+.config-submenu { border-bottom:1px solid #e7e7e7; }
+.config-group-button {
+  min-height:50px;
+  padding:0 8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:14px;
+  font-weight:600;
+}
+.config-group-button:hover,
+.config-home-item:hover,
+.config-submenu-item:hover { background:#f7f7f7; }
+.config-group-chevron {
+  color:#777;
+  font-size:21px;
+  line-height:1;
+  transition:transform .16s ease;
+}
+.config-submenu.open .config-group-chevron { transform:rotate(90deg); }
+.config-submenu-items {
+  display:none;
+  padding:0 0 7px 14px;
+  background:#fafafa;
+}
+.config-submenu.open .config-submenu-items { display:block; }
+.config-submenu-item {
+  min-height:42px;
+  padding:0 8px 0 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-left:1px solid #dedede;
+  color:#555;
+  font-size:13px;
+  font-weight:400;
+}
+.config-submenu-item:hover { color:#222; }
+.config-item-arrow { color:#aaa; font-size:17px; }
+.config-placeholder-overlay { position:fixed; inset:0; z-index:12000; display:grid; place-items:center; padding:24px; background:rgba(0,0,0,.42); }
+.config-placeholder-card { position:relative; width:min(340px,100%); padding:30px 24px 26px; border:1px solid #e2e2e2; border-radius:12px; background:#fff; text-align:center; box-shadow:0 18px 55px rgba(0,0,0,.18); }
+.config-placeholder-card h2 { margin-bottom:8px; font-size:19px; color:#292929; }
+.config-placeholder-card p { margin:0 auto 16px; color:#666; font-size:13px; line-height:1.45; }
+.config-placeholder-badge { display:inline-block; padding:5px 10px; border:1px solid #ddd; border-radius:999px; background:#f7f7f7; color:#666; font-size:11px; font-weight:700; }
 .config-placeholder-close { position:absolute; top:10px; right:10px; }
