@@ -7,6 +7,8 @@ let mineSelectionMode = false;
 let currentViewerIndex = -1;
 let currentInfoTopic = null;
 let viewerCommentsRequestToken = 0;
+let viewerPeopleRequestToken = 0;
+let viewerPeopleData = null;
 function requireGoogleIdentity() {
   const identity = getGoogleIdentity();
 
@@ -275,55 +277,27 @@ function openSideMenu() {
     <aside class="side-menu-panel" aria-label="Menú principal">
       <div class="side-menu-header">
         <div>
-          <strong>Configuración</strong>
-          <span>Mis Recuerdos</span>
+          <strong>${escapeHtml(AppState.app.name)}</strong>
+          <span>v${escapeHtml(AppState.app.version)}</span>
         </div>
         <button class="side-menu-close" onclick="closeSideMenu()" aria-label="Cerrar">×</button>
       </div>
 
-      <nav class="config-navigation" aria-label="Opciones de configuración">
-        <button type="button" class="config-home-item" onclick="closeSideMenu()">
-          <span>Inicio</span>
-        </button>
-
-        ${configMenuGroup("event", "Evento", [
-          ["event-data", "Datos del evento"],
-          ["sections", "Secciones"],
-          ["guests", "Lista de invitados"]
-        ])}
-
-        ${configMenuGroup("appearance", "Apariencia", [
-          ["branding", "Identidad visual"],
-          ["images", "Imágenes e iconos"]
-        ])}
-
-        ${configMenuGroup("operation", "Operación", [
-          ["drive", "Almacenamiento"],
-          ["features", "Funciones de la aplicación"],
-          ["access", "Acceso y permisos"]
-        ])}
-
-        ${configMenuGroup("admin", "Administración", [
-          ["product", "Información del producto"],
-          ["backup", "Respaldo y mantenimiento"]
-        ])}
-      </nav>
-
       <section class="session-card">
-        <h2>Sesión</h2>
+        <h2>Sesión actual</h2>
         ${user ? `
           <div class="session-person">
-            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar"></div>`}
+            ${user.picture ? `<img src="${escapeHtml(user.picture)}" alt="">` : `<div class="session-avatar">👤</div>`}
             <div>
               <strong>${escapeHtml(user.name || "Usuario")}</strong>
               <span>${escapeHtml(user.email || "Correo no disponible")}</span>
             </div>
           </div>
-          <button class="session-action" onclick="Auth.changeAccount()">Cambiar cuenta</button>
+          <button class="session-action primary" onclick="Auth.changeAccount()">Cambiar cuenta</button>
           <button class="session-action" onclick="Auth.logout()">Cerrar sesión</button>
         ` : `
           <p>No hay una sesión iniciada.</p>
-          <button class="session-action" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
+          <button class="session-action primary" onclick="closeSideMenu(); Auth.showLogin()">Iniciar sesión</button>
         `}
       </section>
     </aside>
@@ -331,51 +305,6 @@ function openSideMenu() {
 
   document.body.appendChild(menu);
   requestAnimationFrame(() => menu.classList.add("open"));
-}
-
-function configMenuGroup(id, title, items) {
-  return `
-    <section class="config-submenu" data-config-group="${id}">
-      <button type="button" class="config-group-button" aria-expanded="false" onclick="toggleConfigGroup('${id}')">
-        <span>${escapeHtml(title)}</span>
-        <span class="config-group-chevron" aria-hidden="true">›</span>
-      </button>
-      <div class="config-submenu-items">
-        ${items.map(([itemId, itemTitle]) => `
-          <button type="button" class="config-submenu-item" onclick="showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')">
-            <span>${escapeHtml(itemTitle)}</span>
-            <span class="config-item-arrow" aria-hidden="true">›</span>
-          </button>
-        `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function toggleConfigGroup(id) {
-  const group = document.querySelector(`[data-config-group="${id}"]`);
-  if (!group) return;
-  const button = group.querySelector(".config-group-button");
-  const isOpen = group.classList.toggle("open");
-  button?.setAttribute("aria-expanded", String(isOpen));
-}
-
-function showConfigPlaceholder(id, title) {
-  // Ensayo visual: ninguna opción modifica todavía la configuración real.
-  const existing = document.getElementById("configPlaceholder");
-  existing?.remove();
-  const overlay = document.createElement("div");
-  overlay.id = "configPlaceholder";
-  overlay.className = "config-placeholder-overlay";
-  overlay.innerHTML = `
-    <div class="config-placeholder-card" role="dialog" aria-modal="true">
-      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
-      <h2>${escapeHtml(title)}</h2>
-      <p>Esta pantalla es solo un ensayo de la parametrización. Aquí irá la configuración de esta sección.</p>
-      <span class="config-placeholder-badge">Próximamente</span>
-    </div>
-  `;
-  document.body.appendChild(overlay);
 }
 
 function closeSideMenu() {
@@ -526,6 +455,7 @@ function normalizeGalleryItem(item) {
     momentTypes: Array.isArray(item.momentTypes) ? item.momentTypes : [],
     likedByMe: Boolean(item.likedByMe),
     momentByMe: Boolean(item.momentByMe),
+    personTags: Array.isArray(item.personTags) ? item.personTags : [],
     activityAt: item.activityAt || item.uploadedAt
   };
 }
@@ -1677,6 +1607,28 @@ function openViewer(index, openPanel = "none") {
         ${createViewerMedia(item)}
       </div>
 
+      <section class="viewer-people-panel" aria-label="Personas">
+        <div class="viewer-people-bar">
+          <div class="viewer-people-heading">
+            <strong>👤 Personas</strong>
+            <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
+          </div>
+          <button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">+ Agregar personas</button>
+        </div>
+        <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
+          <div class="viewer-people-picker-header">
+            <strong>¿Quién aparece en este recuerdo?</strong>
+            <button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar selección de personas">×</button>
+          </div>
+          <input id="viewerPeopleSearch" class="viewer-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="renderViewerPeoplePicker()" aria-label="Buscar invitado">
+          <div id="viewerPeopleList" class="viewer-people-list"><div class="viewer-people-loading">Cargando invitados…</div></div>
+          <div class="viewer-people-picker-actions">
+            <button type="button" class="viewer-people-cancel" onclick="closeViewerPeople()">Cancelar</button>
+            <button type="button" id="viewerPeopleSave" class="viewer-people-save" onclick="saveViewerPeople()">Guardar</button>
+          </div>
+        </div>
+      </section>
+
       <section class="viewer-comments closed" aria-label="Comentarios">
         <div class="viewer-comments-header">
           <strong>Comentarios</strong>
@@ -1723,6 +1675,7 @@ function openViewer(index, openPanel = "none") {
   });
   recordViewerView(item);
   loadViewerComments(item.uuid);
+  loadViewerPeople(item.uuid);
   renderViewerMoments(item);
   const commentsPanel = viewer.querySelector(".viewer-comments");
   const momentsPanel = viewer.querySelector(".viewer-moments-panel");
@@ -1743,6 +1696,155 @@ function closeViewerComments() {
 function openViewerComments() {
   document.querySelector(".viewer-comments")?.classList.remove("closed");
   document.querySelector(".viewer-moments-panel")?.classList.remove("open");
+}
+
+
+function renderViewerPeopleSummary(tags = []) {
+  const summary = document.getElementById("viewerPeopleSummary");
+  if (!summary) return;
+  if (!tags.length) {
+    summary.innerHTML = `<span class="viewer-people-empty-summary">Nadie agregado todavía</span>`;
+    return;
+  }
+  summary.innerHTML = tags
+    .map(tag => `<span class="viewer-person-chip">${escapeHtml(tag.nombreInvitado || "Invitado")}</span>`)
+    .join("");
+}
+
+async function loadViewerPeople(uuid) {
+  const summary = document.getElementById("viewerPeopleSummary");
+  const token = ++viewerPeopleRequestToken;
+  if (summary) summary.innerHTML = `<span class="viewer-people-loading">Cargando…</span>`;
+  try {
+    const guestGoogleId = AppState?.security?.user?.id
+      ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
+      : "";
+    const response = await fetch(
+      `${UPLOAD_ENDPOINT}?action=people&uuid=${encodeURIComponent(uuid)}${guestGoogleId}&_=${Date.now()}`
+    );
+    const result = await response.json();
+    if (token !== viewerPeopleRequestToken) return;
+    if (!result.success) throw new Error(result.error || "No fue posible cargar las personas.");
+    viewerPeopleData = {
+      uuid,
+      people: Array.isArray(result.people) ? result.people : [],
+      tags: Array.isArray(result.tags) ? result.tags : []
+    };
+    const item = liveItems[currentViewerIndex];
+    if (item && item.uuid === uuid) item.personTags = viewerPeopleData.tags;
+    renderViewerPeopleSummary(viewerPeopleData.tags);
+    renderViewerPeoplePicker();
+  } catch (error) {
+    console.error("Personas:", error);
+    if (token === viewerPeopleRequestToken && summary) {
+      summary.innerHTML = `<span class="viewer-people-error">No fue posible cargar las personas.</span>`;
+    }
+  }
+}
+
+function toggleViewerPeople() {
+  const picker = document.getElementById("viewerPeoplePicker");
+  if (!picker) return;
+  const isOpen = !picker.hidden;
+  picker.hidden = isOpen;
+  if (!isOpen) {
+    renderViewerPeoplePicker();
+    document.getElementById("viewerPeopleSearch")?.focus();
+  }
+}
+
+function closeViewerPeople() {
+  const picker = document.getElementById("viewerPeoplePicker");
+  if (picker) picker.hidden = true;
+}
+
+function renderViewerPeoplePicker() {
+  const list = document.getElementById("viewerPeopleList");
+  const search = document.getElementById("viewerPeopleSearch");
+  if (!list || !viewerPeopleData) return;
+  const query = String(search?.value || "").trim().toLocaleLowerCase();
+  const tagsById = {};
+  viewerPeopleData.tags.forEach(tag => { tagsById[tag.invitadoId] = tag; });
+  const filtered = viewerPeopleData.people.filter(person => {
+    const text = `${person.nombreInvitado || ""} ${person.nombreFamilia || ""}`.toLocaleLowerCase();
+    return !query || text.includes(query);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="viewer-people-no-results">No encontramos invitados con ese nombre.</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(person => {
+    const tag = tagsById[person.invitadoId];
+    const mine = Boolean(tag?.byMe);
+    const checked = Boolean(tag);
+    const locked = checked && !mine;
+    return `
+      <label class="viewer-person-option ${locked ? "locked" : ""}">
+        <input
+          type="checkbox"
+          class="viewer-person-checkbox"
+          value="${escapeHtml(person.invitadoId)}"
+          ${checked ? "checked" : ""}
+          ${locked ? "disabled" : ""}
+        >
+        <span class="viewer-person-option-main">
+          <strong>${escapeHtml(person.nombreInvitado || "Invitado")}</strong>
+          ${person.nombreFamilia ? `<small>${escapeHtml(person.nombreFamilia)}</small>` : ""}
+        </span>
+        ${locked ? `<span class="viewer-person-locked">Ya agregada</span>` : ""}
+      </label>
+    `;
+  }).join("");
+}
+
+async function saveViewerPeople() {
+  if (!viewerPeopleData?.uuid) return;
+  let identity;
+  try { identity = requireGoogleIdentity(); } catch (error) { return; }
+  const button = document.getElementById("viewerPeopleSave");
+  const selectedSet = new Set(
+    (viewerPeopleData.tags || [])
+      .filter(tag => tag.byMe)
+      .map(tag => tag.invitadoId)
+  );
+  document.querySelectorAll(".viewer-person-checkbox:not(:disabled)").forEach(input => {
+    if (input.checked) selectedSet.add(input.value);
+    else selectedSet.delete(input.value);
+  });
+  const selected = Array.from(selectedSet);
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Guardando…";
+  }
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "tagPeople",
+        uuid: viewerPeopleData.uuid,
+        invitadoIds: selected,
+        ...identity
+      })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible guardar las personas.");
+    viewerPeopleData.tags = Array.isArray(result.tags) ? result.tags : [];
+    const item = liveItems[currentViewerIndex];
+    if (item && item.uuid === viewerPeopleData.uuid) item.personTags = viewerPeopleData.tags;
+    renderViewerPeopleSummary(viewerPeopleData.tags);
+    renderViewerPeoplePicker();
+    closeViewerPeople();
+  } catch (error) {
+    console.error("Guardar personas:", error);
+    window.alert(error.message || "No fue posible guardar las personas.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Guardar";
+    }
+  }
 }
 
 function showPreviousItem() {
@@ -1772,6 +1874,7 @@ function updateViewerMedia() {
   currentWrap.replaceWith(wrapper.firstElementChild);
   recordViewerView(item);
   loadViewerComments(item.uuid);
+  loadViewerPeople(item.uuid);
   renderViewerMoments(item);
   const titleCount = document.getElementById("viewerCommentsTitleCount");
   if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
