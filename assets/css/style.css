@@ -854,12 +854,14 @@ background-position: center;
     justify-content: center;
   }
 
-  .media-viewer-video {
+   .media-viewer-video {
     width: 100vw;
     height: min(82dvh, calc(100dvh - 90px));
     max-width: none;
     max-height: calc(100dvh - 90px);
     border-radius: 0;
+    pointer-events: auto;
+    touch-action: manipulation;
   }
 
   .media-viewer-image {
