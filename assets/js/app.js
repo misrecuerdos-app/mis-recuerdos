@@ -1521,12 +1521,15 @@ function createViewerMedia(item) {
   const isVideo = item.mimeType.startsWith("video/");
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
-      ${isVideo
+
+${isVideo
         ? `<iframe
             class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal"
-            allow="autoplay; fullscreen"
+            src="https://drive.google.com/file/d/${item.fileId}/preview"
+            allow="autoplay; fullscreen; encrypted-media"
             allowfullscreen
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
             title="Video del recuerdo"
           ></iframe>`
         : `<img
@@ -1535,6 +1538,8 @@ function createViewerMedia(item) {
             alt=""
           >`
       }
+      
+     
       <div class="media-viewer-actions">
         <button
           class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}"
