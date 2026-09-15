@@ -1522,23 +1522,28 @@ function createViewerMedia(item) {
   return `
     <div class="media-viewer-media-wrap ${isVideo ? "is-video" : "is-image"}">
 
+/* GROKs code starts
 ${isVideo
-        ? `<iframe
-            class="media-viewer-video"
-            src="https://drive.google.com/file/d/${item.fileId}/preview"
-            allow="autoplay; fullscreen; encrypted-media"
-            allowfullscreen
-            loading="lazy"
-            referrerpolicy="strict-origin-when-cross-origin"
-            title="Video del recuerdo"
-          ></iframe>`
+        ? `<video
+             class="media-viewer-video"
+             controls
+             playsinline
+             preload="metadata"
+             poster="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1280"
+           >
+             <source
+               src="https://drive.google.com/uc?export=download&id=${item.fileId}&confirm=t"
+               type="video/mp4"
+             >
+             Tu navegador no soporta la reproducción de video.
+           </video>`
         : `<img
-            class="media-viewer-image"
-            src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
-            alt=""
-          >`
+             class="media-viewer-image"
+             src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600"
+             alt=""
+           >`
       }
-      
+      /* GROKs code ends
      
       <div class="media-viewer-actions">
         <button
