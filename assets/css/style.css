@@ -3006,3 +3006,79 @@ background-position: center;
 }
 .media-viewer-media-wrap.is-image.tagging-active .media-viewer-image { cursor: crosshair; }
 .media-viewer-media-wrap.is-image.tagging-active .viewer-photo-tag { pointer-events: none; }
+
+/* v1.0.34 - Configuración completa + control personal de visibilidad de etiquetas */
+.config-navigation { margin-top:14px; border-top:1px solid #e7e7e7; }
+.config-home-item,
+.config-group-button,
+.config-submenu-item {
+  width:100%;
+  border:0;
+  background:transparent;
+  color:#333;
+  text-align:left;
+  cursor:pointer;
+}
+.config-home-item { padding:14px 4px; font-weight:700; }
+.config-submenu { border-bottom:1px solid #e7e7e7; }
+.config-group-button {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 4px;
+  font-weight:700;
+}
+.config-group-button:hover,
+.config-home-item:hover,
+.config-submenu-item:hover { background:#f7f7f7; }
+.config-group-chevron {
+  color:#888;
+  font-size:20px;
+  transition:transform .18s ease;
+}
+.config-submenu.open .config-group-chevron { transform:rotate(90deg); }
+.config-submenu-items { display:none; padding:0 0 8px 12px; }
+.config-submenu.open .config-submenu-items { display:block; }
+.config-submenu-item {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 4px 10px 10px;
+  color:#666;
+  font-size:13px;
+}
+.config-item-arrow { color:#aaa; font-size:17px; }
+.config-placeholder-overlay {
+  position:fixed; inset:0; z-index:12000; display:grid; place-items:center;
+  padding:24px; background:rgba(0,0,0,.42);
+}
+.config-placeholder-card {
+  position:relative; width:min(340px,100%); padding:30px 24px 26px;
+  border:1px solid #e2e2e2; border-radius:12px; background:#fff;
+  text-align:center; box-shadow:0 18px 55px rgba(0,0,0,.18);
+}
+.config-placeholder-card h2 { margin-bottom:8px; font-size:19px; color:#292929; }
+.config-placeholder-card p { margin:0 auto 16px; color:#666; font-size:13px; line-height:1.45; }
+.config-placeholder-badge {
+  display:inline-block; padding:5px 10px; border:1px solid #ddd; border-radius:999px;
+  background:#f7f7f7; color:#666; font-size:11px; font-weight:700;
+}
+.config-placeholder-close { position:absolute; top:10px; right:10px; }
+.viewer-people-actions-inline { display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
+.viewer-people-visibility,
+.viewer-people-add {
+  border:1px solid #ddd;
+  border-radius:999px;
+  background:#fff;
+  color:#555;
+  padding:7px 10px;
+  font-size:11px;
+  cursor:pointer;
+}
+.viewer-people-visibility:hover,
+.viewer-people-add:hover { background:#f7f7f7; }
+@media (max-width: 600px) {
+  .viewer-people-actions-inline { width:100%; justify-content:stretch; }
+  .viewer-people-actions-inline button { flex:1; }
+}
