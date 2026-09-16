@@ -3148,3 +3148,101 @@ background-position: center;
   .media-viewer-moment-button, .media-viewer-tag-button { min-height:38px; min-width:38px; padding:8px 10px; }
   .viewer-people-panel { border-radius: 16px 16px 0 0; }
 }
+
+
+/* v1.0.37 - visor: acciones fuera de la foto, paneles debajo */
+#viewerMediaContainer .media-viewer-media-wrap {
+  position: relative;
+}
+
+#viewerMediaContainer .media-viewer-heart-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 3;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.media-viewer-action-strip {
+  width: 100%;
+  min-height: 58px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.media-viewer-action-strip .media-viewer-action-button,
+.media-viewer-action-strip .media-viewer-comment-count,
+.media-viewer-action-strip .media-viewer-moment-button,
+.media-viewer-action-strip .media-viewer-tag-button,
+.media-viewer-action-strip .media-viewer-share-button {
+  position: static;
+  min-height: 40px;
+  min-width: 40px;
+  padding: 8px 11px;
+  box-sizing: border-box;
+}
+
+.media-viewer-action-strip .media-viewer-like-count {
+  position: static;
+  min-height: 40px;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 11px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.media-viewer-action-strip .media-viewer-share-button {
+  flex: 0 0 auto;
+}
+
+.viewer-people-panel {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  #viewerMediaContainer {
+    flex: 0 0 70dvh;
+    height: 70dvh;
+  }
+
+  .media-viewer-action-strip {
+    min-height: 54px;
+    gap: 6px;
+    padding: 7px 8px;
+    overflow-x: auto;
+    justify-content: center;
+  }
+
+  .media-viewer-action-strip .media-viewer-action-button,
+  .media-viewer-action-strip .media-viewer-comment-count,
+  .media-viewer-action-strip .media-viewer-moment-button,
+  .media-viewer-action-strip .media-viewer-tag-button,
+  .media-viewer-action-strip .media-viewer-share-button,
+  .media-viewer-action-strip .media-viewer-like-count {
+    min-height: 38px;
+    min-width: 38px;
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+
+  .media-viewer-action-strip .media-viewer-share-button {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #viewerMediaContainer .media-viewer-heart-hint {
+    bottom: 9px;
+    font-size: 10px;
+  }
+}
