@@ -3294,3 +3294,42 @@ background-position: center;
   .viewer-people-visibility-row { padding-bottom: 8px; }
   .viewer-people-summary { padding-bottom: 10px; }
 }
+
+
+/* v1.0.39 - Personas: contador en el icono + panel más compacto y prioritario */
+.media-viewer-tag-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.media-viewer-tag-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+  font-size: 11px;
+  line-height: 17px;
+}
+.viewer-people-panel {
+  position: relative;
+  z-index: 5;
+  width: min(92%, 720px);
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (max-width: 760px) {
+  .viewer-people-panel {
+    width: min(88%, 560px);
+  }
+  .media-viewer-tag-count {
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    font-size: 10px;
+  }
+}
