@@ -1750,7 +1750,7 @@ function openViewer(index, openPanel = "none") {
         <button class="media-viewer-like-count" type="button" onclick="showViewerLikes(event)" aria-label="Ver quién dio Like" title="Ver quién dio Like">${Number(item.likes || 0)}</button>
         <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
         <button type="button" class="media-viewer-moment-button" onclick="openViewerMoments()" title="Momentos" aria-label="Abrir Momentos">✨ ${Number(item.moments || 0)}</button>
-        <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️</button>
+        <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️ <span id="viewerPeopleCount" class="media-viewer-tag-count">0</span></button>
         <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
       </div>
 
@@ -1829,6 +1829,7 @@ function openViewer(index, openPanel = "none") {
     event.stopPropagation();
     closeViewer();
   });
+  updateViewerPeopleCount(0);
   recordViewerView(item);
   loadViewerComments(item.uuid);
   loadViewerPeople(item.uuid);
@@ -1861,6 +1862,13 @@ function openViewerMoments() {
   closeViewerPeople();
 }
 
+
+function updateViewerPeopleCount(count = 0) {
+  const element = document.getElementById("viewerPeopleCount");
+  if (!element) return;
+  const safeCount = Math.max(0, Number(count) || 0);
+  element.textContent = String(safeCount);
+}
 
 function renderViewerPeopleSummary(tags = []) {
   const summary = document.getElementById("viewerPeopleSummary");
@@ -1895,6 +1903,7 @@ async function loadViewerPeople(uuid) {
     };
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === uuid) item.personTags = viewerPeopleData.tags;
+    updateViewerPeopleCount(viewerPeopleData.tags.length);
     renderViewerPeopleSummary(viewerPeopleData.tags);
     renderViewerPeopleOverlays(item);
     renderViewerPeoplePicker();
@@ -2111,6 +2120,7 @@ async function saveViewerPeople(keepTagging = false) {
     viewerPeopleData.draftTags = viewerPeopleData.tags.map(tag => ({ invitadoId: tag.invitadoId, nombreInvitado: tag.nombreInvitado, nombreFamilia: tag.nombreFamilia, x: tag.x ?? null, y: tag.y ?? null }));
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === viewerPeopleData.uuid) item.personTags = viewerPeopleData.tags;
+    updateViewerPeopleCount(viewerPeopleData.tags.length);
     renderViewerPeopleSummary(viewerPeopleData.tags);
     renderViewerPeopleOverlays(item);
     renderViewerPeoplePicker();
@@ -2200,6 +2210,7 @@ function updateViewerMedia() {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = createViewerMedia(item).trim();
   currentWrap.replaceWith(wrapper.firstElementChild);
+  updateViewerPeopleCount(0);
   recordViewerView(item);
   loadViewerComments(item.uuid);
   loadViewerPeople(item.uuid);
