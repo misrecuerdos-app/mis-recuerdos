@@ -3246,3 +3246,51 @@ background-position: center;
     font-size: 10px;
   }
 }
+
+/* v1.0.38 - Personas: evitar cualquier superposición entre resumen y controles */
+.viewer-people-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+.viewer-people-bar {
+  flex: 0 0 auto;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+.viewer-people-visibility-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 13px 8px;
+}
+.viewer-people-visibility-row .viewer-people-visibility {
+  position: static !important;
+  flex: 0 0 auto;
+}
+.viewer-people-summary {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  padding: 0 13px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  overflow: visible;
+}
+.viewer-people-summary .viewer-person-chip {
+  position: static !important;
+  flex: 0 0 auto;
+}
+.viewer-people-picker {
+  flex: 0 0 auto;
+}
+@media (max-width: 600px) {
+  .viewer-people-visibility-row { padding-bottom: 8px; }
+  .viewer-people-summary { padding-bottom: 10px; }
+}
