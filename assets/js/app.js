@@ -1761,11 +1761,14 @@ function openViewer(index, openPanel = "none") {
         </div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
-            <strong id="viewerPeoplePickerTitle">¿Quién aparece en este recuerdo?</strong>
+            <strong id="viewerPeoplePickerTitle">🏷️ Etiquetar personas</strong>
             <button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar selección de personas">×</button>
           </div>
           <div id="viewerPeoplePointHint" class="viewer-people-point-hint" hidden>Toca una persona en la foto para colocar su etiqueta.</div>
-          <input id="viewerPeopleSearch" class="viewer-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="renderViewerPeoplePicker()" aria-label="Buscar invitado">
+          <div class="viewer-people-search-row">
+            <span class="viewer-people-search-icon" aria-hidden="true">🏷️</span>
+            <input id="viewerPeopleSearch" class="viewer-people-search" type="search" placeholder="Buscar invitado…" autocomplete="off" oninput="renderViewerPeoplePicker()" aria-label="Buscar invitado">
+          </div>
           <div id="viewerPeopleSelected" class="viewer-people-selected"></div>
           <div id="viewerPeopleList" class="viewer-people-list"><div class="viewer-people-loading">Cargando invitados…</div></div>
           <div class="viewer-people-picker-actions">
@@ -1911,12 +1914,15 @@ function toggleViewerPeople() {
     if (hint) hint.hidden = true;
     if (title) title.textContent = "¿Quién aparece en este video?";
     renderViewerPeoplePicker();
+    updateViewerPeopleSaveState();
     window.setTimeout(() => document.getElementById("viewerPeopleSearch")?.focus(), 80);
   } else {
     picker.hidden = true;
     const hint = document.querySelector(".viewer-photo-tagging-hint");
     if (hint) { hint.hidden = false; hint.textContent = "Toca sobre una persona para etiquetarla"; }
     document.querySelector(".media-viewer-media-wrap.is-image")?.classList.add("tagging-active");
+    renderViewerPeoplePicker();
+    updateViewerPeopleSaveState();
   }
 }
 
@@ -2032,17 +2038,31 @@ function renderViewerPeoplePicker() {
         if (viewerPeoplePendingPoint) {
           viewerPeoplePendingPoint = null;
           const picker = document.getElementById("viewerPeoplePicker");
-          if (picker) picker.hidden = true;
-          document.querySelector(".viewer-photo-tagging-hint")?.removeAttribute("hidden");
+          if (picker) picker.hidden = false;
+          document.querySelector(".media-viewer-media-wrap.is-image")?.classList.add("tagging-active");
+          const hint = document.getElementById("viewerPeoplePointHint");
+          if (hint) { hint.hidden = false; hint.textContent = "Etiqueta colocada. Puedes etiquetar a otra persona o guardar los cambios."; }
           renderViewerPeopleOverlays(liveItems[currentViewerIndex]);
-          saveViewerPeople(true);
         }
       } else {
         viewerPeopleData.draftTags = viewerPeopleData.draftTags.filter(tag => tag.invitadoId !== input.value);
       }
       renderViewerPeopleSelected();
+      updateViewerPeopleSaveState();
     });
   });
+  updateViewerPeopleSaveState();
+}
+
+function updateViewerPeopleSaveState() {
+  const button = document.getElementById("viewerPeopleSave");
+  if (!button || !viewerPeopleData) return;
+  const normalize = (arr) => JSON.stringify((arr || []).map(tag => ({
+    invitadoId: tag.invitadoId,
+    x: Number.isFinite(Number(tag.x)) ? Number(tag.x) : null,
+    y: Number.isFinite(Number(tag.y)) ? Number(tag.y) : null
+  })).sort((a,b) => String(a.invitadoId).localeCompare(String(b.invitadoId))));
+  button.disabled = normalize(viewerPeopleData.tags) === normalize(viewerPeopleData.draftTags);
 }
 
 async function saveViewerPeople(keepTagging = false) {
@@ -2073,15 +2093,22 @@ async function saveViewerPeople(keepTagging = false) {
     const item = liveItems[currentViewerIndex];
     if (item && item.uuid === viewerPeopleData.uuid) item.personTags = viewerPeopleData.tags;
     renderViewerPeopleSummary(viewerPeopleData.tags);
+    renderViewerPeopleOverlays(item);
     renderViewerPeoplePicker();
     if (!keepTagging) closeViewerPeople();
+    else {
+      const hint = document.getElementById("viewerPeoplePointHint");
+      if (hint) { hint.hidden = false; hint.textContent = "Cambios guardados. Toca otra persona en la foto para etiquetarla."; }
+      document.querySelector(".media-viewer-media-wrap.is-image")?.classList.add("tagging-active");
+    }
+    await loadViewerPeople(viewerPeopleData.uuid);
   } catch (error) {
     console.error("Guardar personas:", error);
     window.alert(error.message || "No fue posible guardar las personas.");
   } finally {
     if (button) {
-      button.disabled = false;
       button.textContent = "Guardar";
+      updateViewerPeopleSaveState();
     }
   }
 }
