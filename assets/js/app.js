@@ -1705,6 +1705,8 @@ function createViewerMedia(item) {
         <button class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}" type="button" onclick="handleViewerLike(event)" aria-label="Dar Like" title="Dar Like">❤️</button>
         <button class="media-viewer-like-count" type="button" onclick="showViewerLikes(event)" aria-label="Ver quién dio Like" title="Ver quién dio Like">${Number(item.likes || 0)}</button>
         <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
+        <button type="button" class="media-viewer-moment-button" onclick="openViewerMoments()" title="Momentos" aria-label="Abrir Momentos">✨ ${Number(item.moments || 0)}</button>
+        <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️</button>
         <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
       </div>
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
@@ -1751,13 +1753,13 @@ function openViewer(index, openPanel = "none") {
         ${createViewerMedia(item)}
       </div>
 
-      <section class="viewer-people-panel" aria-label="Personas">
+      <section class="viewer-people-panel closed" aria-label="Personas">
         <div class="viewer-people-bar">
           <div class="viewer-people-heading">
             <strong>🏷️ Personas</strong>
             <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
           </div>
-          <div class="viewer-people-actions-inline"><button type="button" class="viewer-people-visibility" id="viewerPersonTagsVisibilityButton" onclick="togglePersonTagsVisibility()" aria-pressed="true">🙈 Ocultar etiquetas</button><button type="button" class="viewer-people-add" onclick="toggleViewerPeople()">🏷️ Etiquetar personas</button></div>
+          <div class="viewer-people-actions-inline"><button type="button" class="viewer-people-visibility" id="viewerPersonTagsVisibilityButton" onclick="togglePersonTagsVisibility()" aria-pressed="true">🙈 Ocultar etiquetas</button><button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar personas">×</button></div>
         </div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
@@ -1846,6 +1848,13 @@ function closeViewerComments() {
 function openViewerComments() {
   document.querySelector(".viewer-comments")?.classList.remove("closed");
   document.querySelector(".viewer-moments-panel")?.classList.remove("open");
+  closeViewerPeople();
+}
+
+function openViewerMoments() {
+  document.querySelector(".viewer-moments-panel")?.classList.add("open");
+  document.querySelector(".viewer-comments")?.classList.add("closed");
+  closeViewerPeople();
 }
 
 
@@ -1895,10 +1904,12 @@ async function loadViewerPeople(uuid) {
 
 function toggleViewerPeople() {
   const item = liveItems[currentViewerIndex];
+  const panel = document.querySelector(".viewer-people-panel");
   const picker = document.getElementById("viewerPeoplePicker");
-  if (!picker || !item) return;
-  const isOpen = !picker.hidden;
+  if (!panel || !picker || !item) return;
+  const isOpen = !panel.classList.contains("closed");
   if (isOpen) { closeViewerPeople(); return; }
+
   viewerPeopleData = viewerPeopleData || { uuid: item.uuid, people: [], tags: [] };
   viewerPeopleData.draftTags = (viewerPeopleData.tags || []).filter(Boolean).map(tag => ({
     invitadoId: tag.invitadoId, nombreInvitado: tag.nombreInvitado, nombreFamilia: tag.nombreFamilia,
@@ -1907,27 +1918,31 @@ function toggleViewerPeople() {
   }));
   viewerPeopleTaggingMode = !item.mimeType.startsWith("video/");
   viewerPeoplePendingPoint = null;
+  panel.classList.remove("closed");
+  picker.hidden = false;
+
+  const hint = document.getElementById("viewerPeoplePointHint");
+  const title = document.getElementById("viewerPeoplePickerTitle");
   if (item.mimeType.startsWith("video/")) {
-    picker.hidden = false;
-    const hint = document.getElementById("viewerPeoplePointHint");
-    const title = document.getElementById("viewerPeoplePickerTitle");
     if (hint) hint.hidden = true;
     if (title) title.textContent = "¿Quién aparece en este video?";
     renderViewerPeoplePicker();
     updateViewerPeopleSaveState();
     window.setTimeout(() => document.getElementById("viewerPeopleSearch")?.focus(), 80);
   } else {
-    picker.hidden = true;
-    const hint = document.querySelector(".viewer-photo-tagging-hint");
-    if (hint) { hint.hidden = false; hint.textContent = "Toca sobre una persona para etiquetarla"; }
+    if (hint) { hint.hidden = false; hint.textContent = "Toca sobre una persona en la foto y después elige su nombre."; }
+    if (title) title.textContent = "🏷️ Etiquetar personas";
     document.querySelector(".media-viewer-media-wrap.is-image")?.classList.add("tagging-active");
     renderViewerPeoplePicker();
     updateViewerPeopleSaveState();
   }
+  window.setTimeout(() => panel.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
 }
 
 function closeViewerPeople() {
+  const panel = document.querySelector(".viewer-people-panel");
   const picker = document.getElementById("viewerPeoplePicker");
+  if (panel) panel.classList.add("closed");
   if (picker) picker.hidden = true;
   viewerPeoplePendingPoint = null;
   viewerPeopleTaggingMode = false;
@@ -2174,6 +2189,7 @@ function updateViewerMedia() {
   document.querySelector(".viewer-likes-panel")?.remove();
   document.querySelector(".viewer-moments-panel")?.classList.remove("open");
   document.querySelector(".viewer-comments")?.classList.add("closed");
+  closeViewerPeople();
   const currentWrap = document.querySelector(".media-viewer-media-wrap");
   if (!item || !currentWrap) return;
 
