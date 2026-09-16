@@ -1701,14 +1701,6 @@ function createViewerMedia(item) {
         ? `<iframe class="media-viewer-video" src="https://drive.google.com/file/d/${item.fileId}/preview?rm=minimal" allow="autoplay; fullscreen" allowfullscreen title="Video del recuerdo"></iframe>\n           ${videoTags.length ? `<div class="viewer-video-people-overlay" id="viewerVideoPeopleOverlay" ${showTags ? "" : "hidden"}><button type="button" class="viewer-video-people-close" onclick="hideViewerVideoPeople(event)" aria-label="Ocultar personas">×</button><span>🏷️ ${videoTags.map(t => escapeHtml(t.nombreInvitado || "Invitado")).join(" · ")}</span></div><button type="button" class="viewer-video-people-reopen" onclick="showViewerVideoPeople(event)" ${showTags ? "hidden" : ""}>🏷️ Personas</button>` : ""}`
         : `<img class="media-viewer-image" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w1600" alt="" draggable="false">\n           <div class="viewer-photo-tags" aria-label="Personas etiquetadas" ${showTags ? "" : "hidden"}>${photoTags.map(tag => `<span class="viewer-photo-tag" style="left:${Number(tag.x)}%;top:${Number(tag.y)}%" title="${escapeHtml(tag.nombreInvitado || "Invitado")}">${escapeHtml(tag.nombreInvitado || "Invitado")}</span>`).join("")}</div>\n           <div class="viewer-photo-tagging-hint" hidden>Toca la foto para etiquetar</div>`
       }
-      <div class="media-viewer-actions">
-        <button class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}" type="button" onclick="handleViewerLike(event)" aria-label="Dar Like" title="Dar Like">❤️</button>
-        <button class="media-viewer-like-count" type="button" onclick="showViewerLikes(event)" aria-label="Ver quién dio Like" title="Ver quién dio Like">${Number(item.likes || 0)}</button>
-        <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
-        <button type="button" class="media-viewer-moment-button" onclick="openViewerMoments()" title="Momentos" aria-label="Abrir Momentos">✨ ${Number(item.moments || 0)}</button>
-        <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️</button>
-        <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
-      </div>
       ${!isVideo ? `<div class="media-viewer-heart-hint">Doble toque también da ❤️</div>` : ""}
     </div>
   `;
@@ -1751,6 +1743,15 @@ function openViewer(index, openPanel = "none") {
     <div class="media-viewer-content">
       <div id="viewerMediaContainer">
         ${createViewerMedia(item)}
+      </div>
+
+      <div class="media-viewer-action-strip" aria-label="Acciones del recuerdo">
+        <button class="media-viewer-action-button ${item.likedByMe ? "liked" : ""}" type="button" onclick="handleViewerLike(event)" aria-label="Dar Like" title="Dar Like">❤️</button>
+        <button class="media-viewer-like-count" type="button" onclick="showViewerLikes(event)" aria-label="Ver quién dio Like" title="Ver quién dio Like">${Number(item.likes || 0)}</button>
+        <button type="button" class="media-viewer-comment-count" onclick="openViewerComments()" title="Ver comentarios">💬 ${Number(item.comments || 0)}</button>
+        <button type="button" class="media-viewer-moment-button" onclick="openViewerMoments()" title="Momentos" aria-label="Abrir Momentos">✨ ${Number(item.moments || 0)}</button>
+        <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️</button>
+        <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
       </div>
 
       <section class="viewer-people-panel closed" aria-label="Personas">
