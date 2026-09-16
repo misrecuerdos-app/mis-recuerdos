@@ -3082,3 +3082,14 @@ background-position: center;
   .viewer-people-actions-inline { width:100%; justify-content:stretch; }
   .viewer-people-actions-inline button { flex:1; }
 }
+
+
+/* v1.0.35 - Etiquetado: guardado explícito y controles separados */
+.viewer-people-picker { margin-top:10px; border-top:1px solid #eee; padding-top:10px; }
+.viewer-people-picker-header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.viewer-people-search-row { display:flex; align-items:center; gap:8px; border:1px solid #ddd; border-radius:10px; background:#fff; padding:0 10px; }
+.viewer-people-search-icon { flex:0 0 auto; font-size:15px; }
+.viewer-people-search-row .viewer-people-search { border:0; outline:0; box-shadow:none; padding-left:0; }
+.viewer-people-picker-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+.viewer-people-save:disabled { opacity:.45; cursor:not-allowed; }
+@media (max-width:600px) { .viewer-people-picker-actions { position:sticky; bottom:0; background:#fff; padding-top:8px; } }
