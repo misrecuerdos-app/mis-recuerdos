@@ -1758,10 +1758,13 @@ function openViewer(index, openPanel = "none") {
         <div class="viewer-people-bar">
           <div class="viewer-people-heading">
             <strong>🏷️ Personas</strong>
-            <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
           </div>
-          <div class="viewer-people-actions-inline"><button type="button" class="viewer-people-visibility" id="viewerPersonTagsVisibilityButton" onclick="togglePersonTagsVisibility()" aria-pressed="true">🙈 Ocultar etiquetas</button><button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar personas">×</button></div>
+          <button type="button" class="viewer-panel-close" onclick="closeViewerPeople()" aria-label="Cerrar personas">×</button>
         </div>
+        <div class="viewer-people-visibility-row">
+          <button type="button" class="viewer-people-visibility" id="viewerPersonTagsVisibilityButton" onclick="togglePersonTagsVisibility()" aria-pressed="true">🙈 Ocultar etiquetas</button>
+        </div>
+        <div id="viewerPeopleSummary" class="viewer-people-summary"><span class="viewer-people-loading">Cargando…</span></div>
         <div id="viewerPeoplePicker" class="viewer-people-picker" hidden>
           <div class="viewer-people-picker-header">
             <strong id="viewerPeoplePickerTitle">🏷️ Etiquetar personas</strong>
