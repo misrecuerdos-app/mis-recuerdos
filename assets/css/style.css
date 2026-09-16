@@ -3093,3 +3093,58 @@ background-position: center;
 .viewer-people-picker-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
 .viewer-people-save:disabled { opacity:.45; cursor:not-allowed; }
 @media (max-width:600px) { .viewer-people-picker-actions { position:sticky; bottom:0; background:#fff; padding-top:8px; } }
+
+
+/* v1.0.36 - visor limpio: Personas se abre solo desde el icono 🏷️ y aparece debajo del recuerdo */
+.viewer-people-panel {
+  order: 2;
+  width: 100%;
+  flex: 0 0 auto;
+  border: 1px solid #eadfea;
+  border-radius: 16px;
+  background: #fff;
+  color: #2d2630;
+  overflow: hidden;
+}
+.viewer-people-panel.closed { display: none !important; }
+.viewer-people-picker {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  z-index: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  margin: 0 !important;
+  border: 0 !important;
+  border-top: 1px solid #eee7ed !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #fcfafc;
+}
+.viewer-people-actions-inline { align-items: center; }
+.viewer-people-visibility { white-space: nowrap; }
+.viewer-people-selected { max-height: 90px; overflow-y: auto; }
+.media-viewer-moment-button,
+.media-viewer-tag-button {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0,0,0,.62);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.media-viewer-moment-button:hover,
+.media-viewer-tag-button:hover { background: rgba(0,0,0,.76); }
+@media (max-width:760px) {
+  .media-viewer-moment-button, .media-viewer-tag-button { min-height:38px; min-width:38px; padding:8px 10px; }
+  .viewer-people-panel { border-radius: 16px 16px 0 0; }
+}
