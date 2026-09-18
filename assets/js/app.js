@@ -346,7 +346,7 @@ function configMenuGroup(id, title, items) {
       </button>
       <div class="config-submenu-items">
         ${items.map(([itemId, itemTitle]) => `
-          <button type="button" class="config-submenu-item" onclick="showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')">
+          <button type="button" class="config-submenu-item" onclick="${itemId === "guests" ? "showGuestListConfig()" : `showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')`}">
             <span>${escapeHtml(itemTitle)}</span>
             <span class="config-item-arrow" aria-hidden="true">›</span>
           </button>
@@ -354,6 +354,120 @@ function configMenuGroup(id, title, items) {
       </div>
     </section>
   `;
+}
+
+const GUEST_LIST_URL_KEY = "mis-recuerdos-guest-list-url";
+
+function getGuestListUrl() {
+  return String(localStorage.getItem(GUEST_LIST_URL_KEY) || "").trim();
+}
+
+function saveGuestListUrl() {
+  const input = document.getElementById("guestListUrlInput");
+  const status = document.getElementById("guestListConfigStatus");
+  if (!input) return;
+
+  const url = String(input.value || "").trim();
+  if (url && !/^https:\/\//i.test(url)) {
+    if (status) status.textContent = "La liga debe comenzar con https://";
+    input.focus();
+    return;
+  }
+
+  if (url) localStorage.setItem(GUEST_LIST_URL_KEY, url);
+  else localStorage.removeItem(GUEST_LIST_URL_KEY);
+
+  if (status) {
+    status.textContent = url
+      ? "🟢 Liga guardada en este dispositivo."
+      : "No hay una liga configurada.";
+  }
+  updateGuestListConfigActions();
+}
+
+function updateGuestListConfigActions() {
+  const url = getGuestListUrl();
+  const openButton = document.getElementById("guestListOpenButton");
+  const clearButton = document.getElementById("guestListClearButton");
+  const input = document.getElementById("guestListUrlInput");
+  if (input && document.activeElement !== input) input.value = url;
+  if (openButton) openButton.disabled = !url;
+  if (clearButton) clearButton.disabled = !url;
+}
+
+function openGuestList() {
+  const url = getGuestListUrl();
+  const status = document.getElementById("guestListConfigStatus");
+  if (!url) {
+    if (status) status.textContent = "Primero guarda la liga de la lista.";
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function clearGuestListUrl() {
+  localStorage.removeItem(GUEST_LIST_URL_KEY);
+  const input = document.getElementById("guestListUrlInput");
+  if (input) input.value = "";
+  const status = document.getElementById("guestListConfigStatus");
+  if (status) status.textContent = "No hay una liga configurada.";
+  updateGuestListConfigActions();
+}
+
+async function refreshGuestList() {
+  const status = document.getElementById("guestListConfigStatus");
+  const button = document.getElementById("guestListRefreshButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Actualizando…";
+  }
+  if (status) status.textContent = "Consultando la lista actual…";
+
+  try {
+    const response = await fetch(`${UPLOAD_ENDPOINT}?action=peopleList&_=${Date.now()}`);
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible actualizar la lista.");
+    const people = Array.isArray(result.people) ? result.people : [];
+    galleryPeopleCache = people;
+    const count = people.length;
+    if (status) status.textContent = `🟢 Lista actualizada. ${count} ${count === 1 ? "persona" : "personas"} disponible${count === 1 ? "" : "s"}.`;
+  } catch (error) {
+    console.error("Actualizar lista de invitados:", error);
+    if (status) status.textContent = "🔴 No fue posible actualizar la lista.";
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "🔄 Actualizar lista";
+    }
+  }
+}
+
+function showGuestListConfig() {
+  const existing = document.getElementById("configPlaceholder");
+  existing?.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "configPlaceholder";
+  overlay.className = "config-placeholder-overlay";
+  const savedUrl = escapeHtml(getGuestListUrl());
+  overlay.innerHTML = `
+    <div class="config-placeholder-card guest-list-config-card" role="dialog" aria-modal="true" aria-labelledby="guestListConfigTitle">
+      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
+      <h2 id="guestListConfigTitle">Lista de invitados</h2>
+      <p>Guarda aquí la liga de Google Sheets que utilizas para administrar los invitados. Así podrás abrirla directamente desde Mis Recuerdos sin entrar a Google Drive.</p>
+      <label class="guest-list-config-label" for="guestListUrlInput">Liga de la lista</label>
+      <input id="guestListUrlInput" class="guest-list-config-input" type="url" inputmode="url" placeholder="https://docs.google.com/spreadsheets/..." value="${savedUrl}" autocomplete="off">
+      <div id="guestListConfigStatus" class="guest-list-config-status">${savedUrl ? "🟢 Hay una liga configurada en este dispositivo." : "No hay una liga configurada."}</div>
+      <div class="guest-list-config-actions">
+        <button type="button" class="guest-list-config-primary" onclick="saveGuestListUrl()">💾 Guardar liga</button>
+        <button type="button" id="guestListOpenButton" class="guest-list-config-secondary" onclick="openGuestList()" ${savedUrl ? "" : "disabled"}>🔗 Abrir lista</button>
+        <button type="button" id="guestListRefreshButton" class="guest-list-config-secondary" onclick="refreshGuestList()">🔄 Actualizar lista</button>
+        <button type="button" id="guestListClearButton" class="guest-list-config-secondary guest-list-config-danger" onclick="clearGuestListUrl()" ${savedUrl ? "" : "disabled"}>Borrar liga</button>
+      </div>
+      <p class="guest-list-config-note">Después de modificar el Sheet, usa <strong>Actualizar lista</strong> para comprobar que los nuevos invitados ya están disponibles en Personas.</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  updateGuestListConfigActions();
 }
 
 function toggleConfigGroup(id) {
@@ -2972,3 +3086,26 @@ function renderViewerPeopleOverlays(item) {
     }
   }
 }
+
+/* v1.0.41 - Configuración > Evento > Lista de invitados */
+(function injectGuestListConfigStyles() {
+  if (document.getElementById("guestListConfigStyles")) return;
+  const style = document.createElement("style");
+  style.id = "guestListConfigStyles";
+  style.textContent = `
+    .guest-list-config-card { text-align:left; }
+    .guest-list-config-card h2 { padding-right:28px; }
+    .guest-list-config-card > p { text-align:left; }
+    .guest-list-config-label { display:block; margin:14px 0 6px; font-size:12px; font-weight:700; color:#555; }
+    .guest-list-config-input { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #d9d9d9; border-radius:9px; font:inherit; font-size:13px; outline:none; }
+    .guest-list-config-input:focus { border-color:#aaa; box-shadow:0 0 0 3px rgba(0,0,0,.05); }
+    .guest-list-config-status { min-height:20px; margin:9px 0 12px; color:#666; font-size:12px; line-height:1.4; }
+    .guest-list-config-actions { display:grid; gap:8px; }
+    .guest-list-config-actions button { width:100%; border:1px solid #ddd; border-radius:9px; padding:10px 12px; background:#fff; color:#333; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .guest-list-config-actions button:disabled { opacity:.45; cursor:not-allowed; }
+    .guest-list-config-primary { background:#f7f7f7 !important; }
+    .guest-list-config-danger { color:#777 !important; font-weight:600 !important; }
+    .guest-list-config-note { margin-top:14px !important; font-size:11px !important; color:#888 !important; }
+  `;
+  document.head.appendChild(style);
+})();
