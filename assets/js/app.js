@@ -1831,8 +1831,9 @@ function openViewer(index, openPanel = "none") {
   });
   updateViewerPeopleCount(0);
   recordViewerView(item);
-  loadViewerComments(item.uuid);
-  loadViewerPeople(item.uuid);
+  // PERF-02: comentarios y personas son paneles cerrados por defecto.
+  // No hacemos sus peticiones hasta que el usuario los abra.
+  viewerPeopleData = null;
   renderViewerMoments(item);
   const commentsPanel = viewer.querySelector(".viewer-comments");
   const momentsPanel = viewer.querySelector(".viewer-moments-panel");
@@ -1854,6 +1855,9 @@ function openViewerComments() {
   document.querySelector(".viewer-comments")?.classList.remove("closed");
   document.querySelector(".viewer-moments-panel")?.classList.remove("open");
   closeViewerPeople();
+
+  const item = liveItems[currentViewerIndex];
+  if (item?.uuid) loadViewerComments(item.uuid);
 }
 
 function openViewerMoments() {
@@ -1923,7 +1927,10 @@ function toggleViewerPeople() {
   const isOpen = !panel.classList.contains("closed");
   if (isOpen) { closeViewerPeople(); return; }
 
-  viewerPeopleData = viewerPeopleData || { uuid: item.uuid, people: [], tags: [] };
+  if (!viewerPeopleData || viewerPeopleData.uuid !== item.uuid) {
+    viewerPeopleData = { uuid: item.uuid, people: [], tags: [], draftTags: [] };
+    loadViewerPeople(item.uuid);
+  }
   viewerPeopleData.draftTags = (viewerPeopleData.tags || []).filter(Boolean).map(tag => ({
     invitadoId: tag.invitadoId, nombreInvitado: tag.nombreInvitado, nombreFamilia: tag.nombreFamilia,
     x: Number.isFinite(Number(tag.x)) ? Number(tag.x) : null,
@@ -2212,8 +2219,9 @@ function updateViewerMedia() {
   currentWrap.replaceWith(wrapper.firstElementChild);
   updateViewerPeopleCount(0);
   recordViewerView(item);
-  loadViewerComments(item.uuid);
-  loadViewerPeople(item.uuid);
+  // PERF-02: comentarios y personas son paneles cerrados por defecto.
+  // No hacemos sus peticiones hasta que el usuario los abra.
+  viewerPeopleData = null;
   renderViewerMoments(item);
   const titleCount = document.getElementById("viewerCommentsTitleCount");
   if (titleCount) titleCount.textContent = `💬 ${Number(item.comments || 0)}`;
