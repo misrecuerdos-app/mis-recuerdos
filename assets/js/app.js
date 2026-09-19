@@ -712,6 +712,46 @@ function renderLive() {
   showGallerySections();
 }
 
+function parseGalleryTimestamp(value) {
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isFinite(time) ? time : 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const text = String(value || "").trim();
+  if (!text) return 0;
+
+  // Google Sheets puede devolver fechas como ISO o como texto local,
+  // por ejemplo: "9/19/2026 16:36:59". No debemos depender de que
+  // Date.parse interprete todos los formatos exactamente igual.
+  const localMatch = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/);
+  if (localMatch) {
+    const month = Number(localMatch[1]);
+    const day = Number(localMatch[2]);
+    const year = Number(localMatch[3]);
+    const hour = Number(localMatch[4] || 0);
+    const minute = Number(localMatch[5] || 0);
+    const second = Number(localMatch[6] || 0);
+    const millis = Number(String(localMatch[7] || "0").padEnd(3, "0"));
+    const date = new Date(year, month - 1, day, hour, minute, second, millis);
+    const time = date.getTime();
+    if (Number.isFinite(time)) return time;
+  }
+
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function galleryItemTimestamp(item, field = "activityAt") {
+  const primary = parseGalleryTimestamp(item?.[field]);
+  if (primary) return primary;
+  return parseGalleryTimestamp(item?.uploadedAt);
+}
+
 function normalizeGalleryItem(item) {
   return {
     ...item,
@@ -733,22 +773,22 @@ function sortGalleryItems(items, sort = "recent") {
       const likesDiff = Number(b.likes || 0) - Number(a.likes || 0);
       if (likesDiff !== 0) return likesDiff;
       const viewsDiff = Number(b.views || 0) - Number(a.views || 0);
-      return viewsDiff !== 0 ? viewsDiff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+      return viewsDiff !== 0 ? viewsDiff : galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt");
     });
   }
   if (sort === "moments") {
     return normalized.sort((a,b) => {
       const diff = Number(b.moments || 0) - Number(a.moments || 0);
-      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+      return diff !== 0 ? diff : galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt");
     });
   }
   if (sort === "likes") {
     return normalized.sort((a,b) => {
       const diff = Number(b.likes || 0) - Number(a.likes || 0);
-      return diff !== 0 ? diff : new Date(b.uploadedAt || 0).getTime() - new Date(a.uploadedAt || 0).getTime();
+      return diff !== 0 ? diff : galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt");
     });
   }
-  return normalized.sort((a,b) => new Date(b.activityAt || b.uploadedAt || 0).getTime() - new Date(a.activityAt || a.uploadedAt || 0).getTime());
+  return normalized.sort((a,b) => galleryItemTimestamp(b) - galleryItemTimestamp(a));
 }
 
 function renderGallerySort(sort) {
@@ -1321,7 +1361,12 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
     sort,
     mode,
     page: Number(page) || 1,
-    pageSize: 9,
+    // En "Reciente" cargamos el conjunto completo para que el ordenamiento
+    // local sea correcto incluso si alguna fecha del índice llega en un
+    // formato distinto o el backend entrega la página inicial en otro orden.
+    // Con esto evitamos que un video recién subido quede fuera de la primera
+    // página antes de que el navegador pueda ordenarlo.
+    pageSize: sort === "recent" ? 1000 : 9,
     momentType: momentType || ""
   };
 
