@@ -286,7 +286,7 @@ function openSideMenu() {
       </div>
 
       <nav class="config-navigation" aria-label="Opciones de configuración">
-        <button type="button" class="config-home-item" onclick="closeSideMenu()">
+        <button type="button" class="config-home-item" onclick="showTutorialConfig()">
           <span>Inicio</span>
         </button>
 
@@ -337,6 +337,83 @@ function openSideMenu() {
   requestAnimationFrame(() => menu.classList.add("open"));
 }
 
+const STORAGE_CONFIG_KEY = "mis-recuerdos-storage-config";
+
+function getStorageConfig() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_CONFIG_KEY) || "{}"); }
+  catch (_) { return {}; }
+}
+
+function saveStorageConfig() {
+  const account = String(document.getElementById("storageGoogleAccount")?.value || "").trim();
+  const photos = String(document.getElementById("storagePhotosUrl")?.value || "").trim();
+  const videos = String(document.getElementById("storageVideosUrl")?.value || "").trim();
+  const sheet = String(document.getElementById("storageSheetUrl")?.value || "").trim();
+  const status = document.getElementById("storageConfigStatus");
+  const fields = [["la cuenta de Google",account],["la carpeta de Fotos",photos],["la carpeta de Videos",videos],["el Google Sheet",sheet]];
+  const bad = fields.find(([,v]) => v && !/^https?:\/\//i.test(v) && v.includes("/"));
+  if (bad) { if(status) status.textContent = `🔴 Revisa ${bad[0]}. Usa una dirección que comience con https://`; return; }
+  const cfg = { googleAccount: account, photosUrl: photos, videosUrl: videos, sheetUrl: sheet, updatedAt: new Date().toISOString() };
+  localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(cfg));
+  if(status) status.textContent = "🟢 Configuración guardada en este dispositivo.";
+  updateStorageConfigStatus();
+}
+
+function updateStorageConfigStatus() {
+  const cfg = getStorageConfig();
+  const status = document.getElementById("storageConfigStatus");
+  const count = [cfg.googleAccount,cfg.photosUrl,cfg.videosUrl,cfg.sheetUrl].filter(Boolean).length;
+  if(status && !status.textContent.includes("Configuración guardada")) status.textContent = count ? `🟢 ${count} de 4 datos configurados en este dispositivo.` : "No hay datos de almacenamiento configurados.";
+}
+
+function clearStorageConfig() {
+  localStorage.removeItem(STORAGE_CONFIG_KEY);
+  ["storageGoogleAccount","storagePhotosUrl","storageVideosUrl","storageSheetUrl"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  const status=document.getElementById("storageConfigStatus");
+  if(status) status.textContent="No hay datos de almacenamiento configurados.";
+}
+
+function showStorageConfig() {
+  document.getElementById("configPlaceholder")?.remove();
+  const cfg=getStorageConfig();
+  const overlay=document.createElement("div"); overlay.id="configPlaceholder"; overlay.className="config-placeholder-overlay";
+  overlay.innerHTML=`
+    <div class="config-placeholder-card storage-config-card" role="dialog" aria-modal="true" aria-labelledby="storageConfigTitle">
+      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
+      <h2 id="storageConfigTitle">Almacenamiento</h2>
+      <p>Indica dónde estarán los recursos de este evento. Por ahora lo configuraremos manualmente; más adelante podremos hacerlo de forma asistida.</p>
+      <label class="storage-config-label" for="storageGoogleAccount">Cuenta de Google del evento</label>
+      <input id="storageGoogleAccount" class="storage-config-input" type="email" placeholder="nombre@gmail.com" value="${escapeHtml(cfg.googleAccount||"")}" autocomplete="off">
+      <label class="storage-config-label" for="storagePhotosUrl">Carpeta de Fotos</label>
+      <input id="storagePhotosUrl" class="storage-config-input" type="url" placeholder="https://drive.google.com/drive/folders/..." value="${escapeHtml(cfg.photosUrl||"")}" autocomplete="off">
+      <label class="storage-config-label" for="storageVideosUrl">Carpeta de Videos</label>
+      <input id="storageVideosUrl" class="storage-config-input" type="url" placeholder="https://drive.google.com/drive/folders/..." value="${escapeHtml(cfg.videosUrl||"")}" autocomplete="off">
+      <label class="storage-config-label" for="storageSheetUrl">Google Sheet de actividad</label>
+      <input id="storageSheetUrl" class="storage-config-input" type="url" placeholder="https://docs.google.com/spreadsheets/..." value="${escapeHtml(cfg.sheetUrl||"")}" autocomplete="off">
+      <div id="storageConfigStatus" class="storage-config-status">${cfg.googleAccount||cfg.photosUrl||cfg.videosUrl||cfg.sheetUrl ? `🟢 ${[cfg.googleAccount,cfg.photosUrl,cfg.videosUrl,cfg.sheetUrl].filter(Boolean).length} de 4 datos configurados en este dispositivo.` : "No hay datos de almacenamiento configurados."}</div>
+      <div class="storage-config-actions">
+        <button type="button" class="storage-config-primary" onclick="saveStorageConfig()">💾 Guardar configuración</button>
+        <button type="button" onclick="clearStorageConfig()">Limpiar configuración</button>
+      </div>
+      <p class="storage-config-note">⚠️ Esta versión solo guarda las referencias. Todavía no mueve ni copia fotos, videos ni datos del evento.</p>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function showTutorialConfig() {
+  document.getElementById("configPlaceholder")?.remove();
+  const overlay=document.createElement("div"); overlay.id="configPlaceholder"; overlay.className="config-placeholder-overlay";
+  overlay.innerHTML=`
+    <div class="config-placeholder-card tutorial-config-card" role="dialog" aria-modal="true" aria-labelledby="tutorialConfigTitle">
+      <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
+      <h2 id="tutorialConfigTitle">Video explicativo</h2>
+      <div class="tutorial-video-placeholder">▶</div>
+      <p>Aquí colocaremos el video corto que explica cómo configurar Mis Recuerdos. Esta primera versión nos permite probar el lugar, tamaño y sensación de la pantalla antes de conectar el video definitivo.</p>
+      <span class="config-placeholder-badge">Video pendiente</span>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
 function configMenuGroup(id, title, items) {
   return `
     <section class="config-submenu" data-config-group="${id}">
@@ -346,7 +423,7 @@ function configMenuGroup(id, title, items) {
       </button>
       <div class="config-submenu-items">
         ${items.map(([itemId, itemTitle]) => `
-          <button type="button" class="config-submenu-item" onclick="${itemId === "guests" ? "showGuestListConfig()" : `showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')`}">
+          <button type="button" class="config-submenu-item" onclick="${itemId === "guests" ? "showGuestListConfig()" : itemId === "drive" ? "showStorageConfig()" : `showConfigPlaceholder('${itemId}', '${escapeHtml(itemTitle)}')`}">
             <span>${escapeHtml(itemTitle)}</span>
             <span class="config-item-arrow" aria-hidden="true">›</span>
           </button>
@@ -3106,6 +3183,18 @@ function renderViewerPeopleOverlays(item) {
     .guest-list-config-primary { background:#f7f7f7 !important; }
     .guest-list-config-danger { color:#777 !important; font-weight:600 !important; }
     .guest-list-config-note { margin-top:14px !important; font-size:11px !important; color:#888 !important; }
+    .storage-config-card { text-align:left; max-height:88vh; overflow:auto; }
+    .storage-config-card > p { text-align:left; }
+    .storage-config-label { display:block; margin:13px 0 6px; font-size:12px; font-weight:700; color:#555; }
+    .storage-config-input { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #d9d9d9; border-radius:9px; font:inherit; font-size:13px; outline:none; }
+    .storage-config-input:focus { border-color:#aaa; box-shadow:0 0 0 3px rgba(0,0,0,.05); }
+    .storage-config-status { min-height:20px; margin:10px 0 12px; color:#666; font-size:12px; line-height:1.4; }
+    .storage-config-actions { display:grid; gap:8px; }
+    .storage-config-actions button { width:100%; border:1px solid #ddd; border-radius:9px; padding:10px 12px; background:#fff; color:#333; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .storage-config-actions .storage-config-primary { background:#f7f7f7; }
+    .storage-config-note { margin-top:14px !important; font-size:11px !important; color:#888 !important; }
+    .tutorial-config-card { text-align:left; }
+    .tutorial-video-placeholder { height:180px; margin:16px 0; border-radius:12px; background:#f1f1f1; display:flex; align-items:center; justify-content:center; font-size:42px; color:#777; border:1px solid #e2e2e2; }
   `;
   document.head.appendChild(style);
 })();
