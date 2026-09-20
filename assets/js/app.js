@@ -338,50 +338,107 @@ function openSideMenu() {
 }
 
 const STORAGE_CONFIG_KEY = "mis-recuerdos-storage-config";
+const EVENT_CONFIG_ENDPOINT = UPLOAD_ENDPOINT;
 
-function getStorageConfig() {
+function getLocalEventConfig() {
   try { return JSON.parse(localStorage.getItem(STORAGE_CONFIG_KEY) || "{}"); }
   catch (_) { return {}; }
 }
 
-function saveStorageConfig() {
+function getStorageConfig() {
+  return getLocalEventConfig();
+}
+
+async function fetchEventConfigFromServer() {
+  const identity = requireGoogleIdentity();
+  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+  const result = await response.json();
+  if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
+  const config = result.config || {};
+  if (result.configured) localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
+  return { configured: Boolean(result.configured), config };
+}
+
+function setStorageFormValues(cfg) {
+  const map = {
+    storageGoogleAccount: cfg.googleAccount || "",
+    storagePhotosUrl: cfg.photosUrl || "",
+    storageVideosUrl: cfg.videosUrl || "",
+    storageSheetUrl: cfg.sheetUrl || ""
+  };
+  Object.entries(map).forEach(([id,value]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+}
+
+async function saveStorageConfig() {
   const account = String(document.getElementById("storageGoogleAccount")?.value || "").trim();
   const photos = String(document.getElementById("storagePhotosUrl")?.value || "").trim();
   const videos = String(document.getElementById("storageVideosUrl")?.value || "").trim();
   const sheet = String(document.getElementById("storageSheetUrl")?.value || "").trim();
   const status = document.getElementById("storageConfigStatus");
   const fields = [["la cuenta de Google",account],["la carpeta de Fotos",photos],["la carpeta de Videos",videos],["el Google Sheet",sheet]];
-  const bad = fields.find(([,v]) => v && !/^https?:\/\//i.test(v) && v.includes("/"));
+  const bad = fields.find(([,v]) => v && !/^https?:\/\//i.test(v));
   if (bad) { if(status) status.textContent = `🔴 Revisa ${bad[0]}. Usa una dirección que comience con https://`; return; }
-  const cfg = { googleAccount: account, photosUrl: photos, videosUrl: videos, sheetUrl: sheet, updatedAt: new Date().toISOString() };
-  localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(cfg));
-  if(status) status.textContent = "🟢 Configuración guardada en este dispositivo.";
-  updateStorageConfigStatus();
+
+  try {
+    const identity = requireGoogleIdentity();
+    if (status) status.textContent = "Guardando configuración del evento…";
+    const config = { googleAccount: account, photosUrl: photos, videosUrl: videos, sheetUrl: sheet, guestListUrl: getLocalEventConfig().guestListUrl || "" };
+    const response = await fetch(EVENT_CONFIG_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveEventConfig", ...identity, config })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible guardar la configuración.");
+    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(result.config || config));
+    setStorageFormValues(result.config || config);
+    if(status) status.textContent = "🟢 Configuración guardada para este evento.";
+    updateStorageConfigStatus();
+  } catch (error) {
+    console.error("Guardar configuración:", error);
+    if(status) status.textContent = `🔴 ${error.message || "No fue posible guardar la configuración."}`;
+  }
 }
 
 function updateStorageConfigStatus() {
   const cfg = getStorageConfig();
   const status = document.getElementById("storageConfigStatus");
   const count = [cfg.googleAccount,cfg.photosUrl,cfg.videosUrl,cfg.sheetUrl].filter(Boolean).length;
-  if(status && !status.textContent.includes("Configuración guardada")) status.textContent = count ? `🟢 ${count} de 4 datos configurados en este dispositivo.` : "No hay datos de almacenamiento configurados.";
+  if(status && !status.textContent.includes("guardada")) status.textContent = count ? `🟢 ${count} de 4 datos configurados.` : "No hay datos de almacenamiento configurados.";
 }
 
-function clearStorageConfig() {
-  localStorage.removeItem(STORAGE_CONFIG_KEY);
-  ["storageGoogleAccount","storagePhotosUrl","storageVideosUrl","storageSheetUrl"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
-  const status=document.getElementById("storageConfigStatus");
-  if(status) status.textContent="No hay datos de almacenamiento configurados.";
+async function clearStorageConfig() {
+  const status = document.getElementById("storageConfigStatus");
+  try {
+    const identity = requireGoogleIdentity();
+    if (status) status.textContent = "Borrando configuración…";
+    const response = await fetch(EVENT_CONFIG_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "clearEventConfig", ...identity })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible borrar la configuración.");
+    localStorage.removeItem(STORAGE_CONFIG_KEY);
+    ["storageGoogleAccount","storagePhotosUrl","storageVideosUrl","storageSheetUrl"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+    if(status) status.textContent="No hay datos de almacenamiento configurados.";
+  } catch (error) {
+    console.error("Borrar configuración:", error);
+    if(status) status.textContent = `🔴 ${error.message || "No fue posible borrar la configuración."}`;
+  }
 }
 
-function showStorageConfig() {
+async function showStorageConfig() {
+  try { requireGoogleIdentity(); } catch (_) { return; }
   document.getElementById("configPlaceholder")?.remove();
-  const cfg=getStorageConfig();
+  const cfg=getLocalEventConfig();
   const overlay=document.createElement("div"); overlay.id="configPlaceholder"; overlay.className="config-placeholder-overlay";
   overlay.innerHTML=`
     <div class="config-placeholder-card storage-config-card" role="dialog" aria-modal="true" aria-labelledby="storageConfigTitle">
       <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
       <h2 id="storageConfigTitle">Almacenamiento</h2>
-      <p>Indica dónde estarán los recursos de este evento. Por ahora lo configuraremos manualmente; más adelante podremos hacerlo de forma asistida.</p>
+      <p>Indica dónde estarán los recursos de este evento. La configuración queda guardada en el evento, no solo en este dispositivo.</p>
       <label class="storage-config-label" for="storageGoogleAccount">Cuenta de Google del evento</label>
       <input id="storageGoogleAccount" class="storage-config-input" type="email" placeholder="nombre@gmail.com" value="${escapeHtml(cfg.googleAccount||"")}" autocomplete="off">
       <label class="storage-config-label" for="storagePhotosUrl">Carpeta de Fotos</label>
@@ -390,14 +447,30 @@ function showStorageConfig() {
       <input id="storageVideosUrl" class="storage-config-input" type="url" placeholder="https://drive.google.com/drive/folders/..." value="${escapeHtml(cfg.videosUrl||"")}" autocomplete="off">
       <label class="storage-config-label" for="storageSheetUrl">Google Sheet de actividad</label>
       <input id="storageSheetUrl" class="storage-config-input" type="url" placeholder="https://docs.google.com/spreadsheets/..." value="${escapeHtml(cfg.sheetUrl||"")}" autocomplete="off">
-      <div id="storageConfigStatus" class="storage-config-status">${cfg.googleAccount||cfg.photosUrl||cfg.videosUrl||cfg.sheetUrl ? `🟢 ${[cfg.googleAccount,cfg.photosUrl,cfg.videosUrl,cfg.sheetUrl].filter(Boolean).length} de 4 datos configurados en este dispositivo.` : "No hay datos de almacenamiento configurados."}</div>
+      <div id="storageConfigStatus" class="storage-config-status">${cfg.googleAccount||cfg.photosUrl||cfg.videosUrl||cfg.sheetUrl ? "🟡 Cargando configuración del evento…" : "Cargando configuración del evento…"}</div>
       <div class="storage-config-actions">
         <button type="button" class="storage-config-primary" onclick="saveStorageConfig()">💾 Guardar configuración</button>
         <button type="button" onclick="clearStorageConfig()">Limpiar configuración</button>
       </div>
-      <p class="storage-config-note">⚠️ Esta versión solo guarda las referencias. Todavía no mueve ni copia fotos, videos ni datos del evento.</p>
+      <p class="storage-config-note">Solo el Google ID que configuró este evento puede consultar, modificar o borrar estos datos.</p>
     </div>`;
   document.body.appendChild(overlay);
+
+  try {
+    const result = await fetchEventConfigFromServer();
+    if (result.configured) {
+      setStorageFormValues(result.config);
+      const status=document.getElementById("storageConfigStatus");
+      if(status) status.textContent="🟢 Configuración del evento cargada.";
+    } else {
+      updateStorageConfigStatus();
+      const status=document.getElementById("storageConfigStatus");
+      if(status && !Object.values(getLocalEventConfig()).some(Boolean)) status.textContent="No hay una configuración guardada todavía.";
+    }
+  } catch (error) {
+    const status=document.getElementById("storageConfigStatus");
+    if(status) status.textContent=`🔴 ${error.message || "No fue posible consultar la configuración."}`;
+  }
 }
 
 function showTutorialConfig() {
@@ -436,30 +509,49 @@ function configMenuGroup(id, title, items) {
 const GUEST_LIST_URL_KEY = "mis-recuerdos-guest-list-url";
 
 function getGuestListUrl() {
-  return String(localStorage.getItem(GUEST_LIST_URL_KEY) || "").trim();
+  return String(getLocalEventConfig().guestListUrl || localStorage.getItem(GUEST_LIST_URL_KEY) || "").trim();
 }
 
-function saveGuestListUrl() {
+async function loadServerEventConfigForGuestList() {
+  const identity = requireGoogleIdentity();
+  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+  const result = await response.json();
+  if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
+  if (result.configured) {
+    const merged = { ...getLocalEventConfig(), ...(result.config || {}) };
+    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(merged));
+    return merged;
+  }
+  return getLocalEventConfig();
+}
+
+async function saveGuestListUrl() {
   const input = document.getElementById("guestListUrlInput");
   const status = document.getElementById("guestListConfigStatus");
   if (!input) return;
-
   const url = String(input.value || "").trim();
   if (url && !/^https:\/\//i.test(url)) {
     if (status) status.textContent = "La liga debe comenzar con https://";
-    input.focus();
-    return;
+    input.focus(); return;
   }
-
-  if (url) localStorage.setItem(GUEST_LIST_URL_KEY, url);
-  else localStorage.removeItem(GUEST_LIST_URL_KEY);
-
-  if (status) {
-    status.textContent = url
-      ? "🟢 Liga guardada en este dispositivo."
-      : "No hay una liga configurada.";
+  try {
+    const identity = requireGoogleIdentity();
+    if (status) status.textContent = "Guardando liga del evento…";
+    const config = { ...getLocalEventConfig(), guestListUrl: url };
+    const response = await fetch(EVENT_CONFIG_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveEventConfig", ...identity, config })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible guardar la liga.");
+    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(result.config || config));
+    if (url) localStorage.setItem(GUEST_LIST_URL_KEY, url); else localStorage.removeItem(GUEST_LIST_URL_KEY);
+    if (status) status.textContent = url ? "🟢 Liga guardada para este evento." : "No hay una liga configurada.";
+    updateGuestListConfigActions();
+  } catch (error) {
+    console.error("Guardar liga de invitados:", error);
+    if (status) status.textContent = `🔴 ${error.message || "No fue posible guardar la liga."}`;
   }
-  updateGuestListConfigActions();
 }
 
 function updateGuestListConfigActions() {
@@ -475,31 +567,39 @@ function updateGuestListConfigActions() {
 function openGuestList() {
   const url = getGuestListUrl();
   const status = document.getElementById("guestListConfigStatus");
-  if (!url) {
-    if (status) status.textContent = "Primero guarda la liga de la lista.";
-    return;
-  }
+  if (!url) { if (status) status.textContent = "Primero guarda la liga de la lista."; return; }
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function clearGuestListUrl() {
-  localStorage.removeItem(GUEST_LIST_URL_KEY);
-  const input = document.getElementById("guestListUrlInput");
-  if (input) input.value = "";
+async function clearGuestListUrl() {
   const status = document.getElementById("guestListConfigStatus");
-  if (status) status.textContent = "No hay una liga configurada.";
-  updateGuestListConfigActions();
+  try {
+    const identity = requireGoogleIdentity();
+    if (status) status.textContent = "Borrando liga…";
+    const current = getLocalEventConfig();
+    const config = { ...current, guestListUrl: "" };
+    const response = await fetch(EVENT_CONFIG_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "saveEventConfig", ...identity, config })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible borrar la liga.");
+    localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(result.config || config));
+    localStorage.removeItem(GUEST_LIST_URL_KEY);
+    const input = document.getElementById("guestListUrlInput"); if (input) input.value = "";
+    if (status) status.textContent = "No hay una liga configurada.";
+    updateGuestListConfigActions();
+  } catch (error) {
+    console.error("Borrar liga de invitados:", error);
+    if (status) status.textContent = `🔴 ${error.message || "No fue posible borrar la liga."}`;
+  }
 }
 
 async function refreshGuestList() {
   const status = document.getElementById("guestListConfigStatus");
   const button = document.getElementById("guestListRefreshButton");
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Actualizando…";
-  }
+  if (button) { button.disabled = true; button.textContent = "Actualizando…"; }
   if (status) status.textContent = "Consultando la lista actual…";
-
   try {
     const response = await fetch(`${UPLOAD_ENDPOINT}?action=peopleList&_=${Date.now()}`);
     const result = await response.json();
@@ -512,28 +612,23 @@ async function refreshGuestList() {
     console.error("Actualizar lista de invitados:", error);
     if (status) status.textContent = "🔴 No fue posible actualizar la lista.";
   } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = "🔄 Actualizar lista";
-    }
+    if (button) { button.disabled = false; button.textContent = "🔄 Actualizar lista"; }
   }
 }
 
-function showGuestListConfig() {
-  const existing = document.getElementById("configPlaceholder");
-  existing?.remove();
-  const overlay = document.createElement("div");
-  overlay.id = "configPlaceholder";
-  overlay.className = "config-placeholder-overlay";
+async function showGuestListConfig() {
+  try { requireGoogleIdentity(); } catch (_) { return; }
+  const existing = document.getElementById("configPlaceholder"); existing?.remove();
+  const overlay = document.createElement("div"); overlay.id = "configPlaceholder"; overlay.className = "config-placeholder-overlay";
   const savedUrl = escapeHtml(getGuestListUrl());
   overlay.innerHTML = `
     <div class="config-placeholder-card guest-list-config-card" role="dialog" aria-modal="true" aria-labelledby="guestListConfigTitle">
       <button type="button" class="side-menu-close config-placeholder-close" onclick="document.getElementById('configPlaceholder')?.remove()" aria-label="Cerrar">×</button>
       <h2 id="guestListConfigTitle">Lista de invitados</h2>
-      <p>Guarda aquí la liga de Google Sheets que utilizas para administrar los invitados. Así podrás abrirla directamente desde Mis Recuerdos sin entrar a Google Drive.</p>
+      <p>Guarda aquí la liga de Google Sheets que utilizas para administrar los invitados. La liga queda guardada en el evento y estará disponible desde otros dispositivos para el administrador autorizado.</p>
       <label class="guest-list-config-label" for="guestListUrlInput">Liga de la lista</label>
       <input id="guestListUrlInput" class="guest-list-config-input" type="url" inputmode="url" placeholder="https://docs.google.com/spreadsheets/..." value="${savedUrl}" autocomplete="off">
-      <div id="guestListConfigStatus" class="guest-list-config-status">${savedUrl ? "🟢 Hay una liga configurada en este dispositivo." : "No hay una liga configurada."}</div>
+      <div id="guestListConfigStatus" class="guest-list-config-status">${savedUrl ? "🟡 Cargando configuración del evento…" : "Cargando configuración del evento…"}</div>
       <div class="guest-list-config-actions">
         <button type="button" class="guest-list-config-primary" onclick="saveGuestListUrl()">💾 Guardar liga</button>
         <button type="button" id="guestListOpenButton" class="guest-list-config-secondary" onclick="openGuestList()" ${savedUrl ? "" : "disabled"}>🔗 Abrir lista</button>
@@ -541,10 +636,18 @@ function showGuestListConfig() {
         <button type="button" id="guestListClearButton" class="guest-list-config-secondary guest-list-config-danger" onclick="clearGuestListUrl()" ${savedUrl ? "" : "disabled"}>Borrar liga</button>
       </div>
       <p class="guest-list-config-note">Después de modificar el Sheet, usa <strong>Actualizar lista</strong> para comprobar que los nuevos invitados ya están disponibles en Personas.</p>
-    </div>
-  `;
+    </div>`;
   document.body.appendChild(overlay);
-  updateGuestListConfigActions();
+  try {
+    const cfg = await loadServerEventConfigForGuestList();
+    const url = String(cfg.guestListUrl || "").trim();
+    if (url) localStorage.setItem(GUEST_LIST_URL_KEY, url); else localStorage.removeItem(GUEST_LIST_URL_KEY);
+    const input=document.getElementById("guestListUrlInput"); if(input) input.value=url;
+    const status=document.getElementById("guestListConfigStatus"); if(status) status.textContent=url ? "🟢 Liga del evento cargada." : "No hay una liga configurada todavía.";
+    updateGuestListConfigActions();
+  } catch (error) {
+    const status=document.getElementById("guestListConfigStatus"); if(status) status.textContent=`🔴 ${error.message || "No fue posible consultar la configuración."}`;
+  }
 }
 
 function toggleConfigGroup(id) {
@@ -1366,7 +1469,7 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
     // formato distinto o el backend entrega la página inicial en otro orden.
     // Con esto evitamos que un video recién subido quede fuera de la primera
     // página antes de que el navegador pueda ordenarlo.
-    pageSize: sort === "recent" ? 1000 : 9,
+    pageSize: 30,
     momentType: momentType || ""
   };
 
