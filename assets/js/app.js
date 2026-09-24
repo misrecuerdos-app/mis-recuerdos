@@ -1464,12 +1464,10 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
     sort,
     mode,
     page: Number(page) || 1,
-    // En "Reciente" cargamos el conjunto completo para que el ordenamiento
-    // local sea correcto incluso si alguna fecha del índice llega en un
-    // formato distinto o el backend entrega la página inicial en otro orden.
-    // Con esto evitamos que un video recién subido quede fuera de la primera
-    // página antes de que el navegador pueda ordenarlo.
-    pageSize: 30,
+    // La galería usa paginación de 9 recuerdos por página.
+    // El orden de Reciente ya viene normalizado por el índice del backend,
+    // por lo que no necesitamos cargar 30 elementos de golpe.
+    pageSize: 9,
     momentType: momentType || ""
   };
 
