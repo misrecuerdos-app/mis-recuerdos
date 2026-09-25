@@ -871,10 +871,16 @@ function normalizeGalleryItem(item) {
 
 function sortGalleryItems(items, sort = "recent") {
   const normalized = items.map(normalizeGalleryItem);
-  if (sort === "views" || sort === "trend") {
+  if (sort === "trend") {
     return normalized.sort((a,b) => {
+      const viewsDiff = Number(b.views || 0) - Number(a.views || 0);
+      if (viewsDiff !== 0) return viewsDiff;
       const likesDiff = Number(b.likes || 0) - Number(a.likes || 0);
-      if (likesDiff !== 0) return likesDiff;
+      return likesDiff !== 0 ? likesDiff : galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt");
+    });
+  }
+  if (sort === "views") {
+    return normalized.sort((a,b) => {
       const viewsDiff = Number(b.views || 0) - Number(a.views || 0);
       return viewsDiff !== 0 ? viewsDiff : galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt");
     });
@@ -1170,7 +1176,9 @@ function renderGalleryItems(items, showInfo = true) {
     const index = liveItems.findIndex(entry => entry.uuid === item.uuid);
     let bottomInfo = "";
     if (galleryContext.mode === "trend") {
-      bottomInfo = `<div class="live-card-metrics"><span>👀 Vistas ${Number(item.views || 0)}</span></div>`;
+      // En Tendencia las vistas ya son el primer icono de la tarjeta.
+      // No duplicarlas debajo de la imagen.
+      bottomInfo = "";
     } else if (galleryContext.mode === "moments") {
       const icons = (item.momentTypes || []).map(typeId => {
         const type = MOMENT_TYPES.find(t => t.id === typeId);
@@ -1181,15 +1189,23 @@ function renderGalleryItems(items, showInfo = true) {
       bottomInfo = showInfo ? `<div class="live-card-info"><div class="live-time">${formatRelativeTime(item.activityAt || item.uploadedAt)}</div></div>` : "";
     }
 
+    const trendActions = galleryContext.mode === "trend"
+      ? `
+        <button type="button" class="live-action" onclick="handleCardView(event, ${index})" title="Vistas">👀 <span>${Number(item.views || 0)}</span></button>
+        <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" oncontextmenu="handleCardLikeList(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
+        <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>`
+      : `
+        <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" oncontextmenu="handleCardLikeList(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
+        <button type="button" class="live-action" onclick="handleCardComment(event, ${index})" title="Comentar">💬 <span>${Number(item.comments || 0)}</span></button>
+        <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>`;
+
     return `
       <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" onclick="handleGalleryTap(event, ${index})">
         <div class="live-media">
           <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w400" alt="" loading="lazy" decoding="async" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onload="handleDriveThumbnailLoad(this)" onerror="handleDriveThumbnailError(this)">
           ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
-            <button type="button" class="live-action ${item.likedByMe ? "liked" : ""}" onclick="handleCardLike(event, ${index})" oncontextmenu="handleCardLikeList(event, ${index})" title="Dar Like">❤️ <span>${Number(item.likes || 0)}</span></button>
-            <button type="button" class="live-action" onclick="handleCardComment(event, ${index})" title="Comentar">💬 <span>${Number(item.comments || 0)}</span></button>
-            <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>
+            ${trendActions}
           </div>
         </div>
         ${bottomInfo}
@@ -1215,6 +1231,12 @@ function handleCardComment(event, index) {
   event.preventDefault(); event.stopPropagation();
   openViewer(index);
   setTimeout(() => document.getElementById("viewerCommentInput")?.focus(), 250);
+}
+
+function handleCardView(event, index) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  openViewer(index);
 }
 
 function handleCardMoment(event, index) {
@@ -1464,9 +1486,7 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
     sort,
     mode,
     page: Number(page) || 1,
-    // La galería usa paginación de 9 recuerdos por página.
-    // El orden de Reciente ya viene normalizado por el índice del backend,
-    // por lo que no necesitamos cargar 30 elementos de golpe.
+    // Mantener la paginación visible y consistente con el backend.
     pageSize: 9,
     momentType: momentType || ""
   };
@@ -2601,15 +2621,36 @@ async function recordViewerView(item) {
   const guestGoogleId = String(AppState?.security?.user?.id || "").trim();
   if (!guestGoogleId) return;
   try {
-    const response = await fetch(UPLOAD_ENDPOINT, { method: "POST", body: JSON.stringify({ action: "view", uuid: item.uuid, guestGoogleId }) });
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "view", uuid: item.uuid, guestGoogleId })
+    });
     const result = await response.json();
-    if (result.success) {
-      item.views = Number(result.views || item.views || 0);
-    }
+    if (!result.success) throw new Error(result.error || "No fue posible registrar la vista.");
+
+    // El backend ya incrementó Views + IndiceActividad + IndiceTendencia.
+    // Reflejamos inmediatamente el nuevo total en la tarjeta visible.
+    item.views = Number(result.views ?? item.views ?? 0);
+    updateGalleryViewCount(item);
   } catch (error) {
     console.warn("No fue posible registrar la vista.", error);
   }
 }
+
+function updateGalleryViewCount(item) {
+  if (!item?.uuid) return;
+  document.querySelectorAll("[data-gallery-index]").forEach(card => {
+    const index = Number(card.dataset.galleryIndex);
+    const cardItem = liveItems[index];
+    if (!cardItem || cardItem.uuid !== item.uuid) return;
+    const viewButton = card.querySelector(".live-action[title=\"Vistas\"] span");
+    if (viewButton) viewButton.textContent = Number(item.views || 0);
+    const metrics = card.querySelector(".live-card-metrics");
+    const metricText = metrics?.querySelector("span:first-child");
+    if (metricText && galleryContext.mode === "trend") metricText.textContent = `👀 Vistas ${Number(item.views || 0)}`;
+  });
+}
+
 
 function closeViewer() {
   // v1.0.29: los temporizadores pertenecían al reproductor HTML5
@@ -2620,6 +2661,17 @@ function closeViewer() {
   const viewer = document.querySelector(".media-viewer");
   if (viewer) viewer.remove();
   currentViewerIndex = -1;
+
+  if (galleryContext.mode === "trend" && galleryContext.url) {
+    loadGalleryItems(
+      galleryContext.url,
+      galleryContext.showInfo,
+      galleryContext.sort,
+      galleryContext.mode,
+      galleryContext.page,
+      galleryContext.momentType || ""
+    );
+  }
 }
 
 function renderSections() {
