@@ -962,6 +962,62 @@ function updateLikeIndicators() {
   });
 }
 
+function updateGalleryCardMetrics(item) {
+  if (!item?.uuid) return;
+
+  document.querySelectorAll("[data-gallery-index]").forEach(card => {
+    const index = Number(card.dataset.galleryIndex);
+    const cardItem = liveItems[index];
+    if (!cardItem || cardItem.uuid !== item.uuid) return;
+
+    const actions = Array.from(card.querySelectorAll(".live-action"));
+    if (galleryContext.mode === "trend") {
+      if (actions[0]) {
+        const span = actions[0].querySelector("span");
+        if (span) span.textContent = Number(item.views || 0);
+      }
+      if (actions[1]) {
+        const span = actions[1].querySelector("span");
+        if (span) span.textContent = Number(item.likes || 0);
+        actions[1].classList.toggle("liked", Boolean(item.likedByMe));
+      }
+      if (actions[2]) {
+        const span = actions[2].querySelector("span");
+        if (span) span.textContent = Number(item.moments || 0);
+        actions[2].classList.toggle("moment-marked", Boolean(item.momentByMe));
+      }
+    } else {
+      if (actions[0]) {
+        const span = actions[0].querySelector("span");
+        if (span) span.textContent = Number(item.likes || 0);
+        actions[0].classList.toggle("liked", Boolean(item.likedByMe));
+      }
+      if (actions[1]) {
+        const span = actions[1].querySelector("span");
+        if (span && actions[1].title === "Comentar") span.textContent = Number(item.comments || 0);
+      }
+      if (actions[2]) {
+        const span = actions[2].querySelector("span");
+        if (span) span.textContent = Number(item.moments || 0);
+        actions[2].classList.toggle("moment-marked", Boolean(item.momentByMe));
+      }
+    }
+
+    card.classList.toggle("liked-by-me", Boolean(item.likedByMe));
+
+    if (galleryContext.mode === "moments") {
+      const metrics = card.querySelector(".live-card-metrics");
+      if (metrics) {
+        const icons = (item.momentTypes || []).map(typeId => {
+          const type = MOMENT_TYPES.find(t => t.id === typeId);
+          return type ? type.icon : "";
+        }).filter(Boolean).join(" ");
+        metrics.innerHTML = `<span>✨ ${Number(item.moments || 0)}</span>${icons ? `<span>${icons}</span>` : ""}`;
+      }
+    }
+  });
+}
+
 async function toggleLike(index) {
   const item = liveItems[index];
   if (!item?.uuid) {
@@ -994,18 +1050,9 @@ async function toggleLike(index) {
 
     item.likes = Number(result.likes ?? item.likes ?? 0);
     item.likedByMe = Boolean(result.likedByMe ?? result.liked);
-    if (item.likedByMe) item.activityAt = new Date().toISOString();
+    if (result.activityAt) item.activityAt = result.activityAt;
     updateViewerLikeCount();
-
-    if (galleryContext.sort === "likes") {
-      liveItems = sortGalleryItems(liveItems, "likes");
-      renderGalleryItems(liveItems, galleryContext.showInfo);
-    } else if (galleryContext.mode === "recent") {
-      liveItems = sortGalleryItems(liveItems, "recent");
-      renderGalleryItems(liveItems, galleryContext.showInfo);
-    } else {
-      updateLikeIndicators();
-    }
+    updateGalleryCardMetrics(item);
   } catch (error) {
     console.error("Like:", error);
     window.alert(error.message || "No fue posible registrar el Like.");
@@ -1040,6 +1087,11 @@ async function loadViewerComments(uuid) {
     if (!result.success) throw new Error(result.error || "No fue posible cargar los comentarios.");
 
     const comments = Array.isArray(result.comments) ? result.comments : [];
+    const commentItem = liveItems.find(entry => entry.uuid === uuid);
+    if (commentItem) {
+      commentItem.comments = comments.length;
+      updateGalleryCardMetrics(commentItem);
+    }
     container.innerHTML = comments.length
       ? comments.map(comment => `
           <div class="viewer-comment">
@@ -1103,7 +1155,8 @@ async function saveEditedViewerComment(rowNumber) {
     const result = await response.json();
     if (!result.success) throw new Error(result.error || "No fue posible editar el comentario.");
     item.comments = Number(result.comments ?? item.comments ?? 0);
-    item.activityAt = result.commentedAt || new Date().toISOString();
+    item.activityAt = result.activityAt || result.commentedAt || new Date().toISOString();
+    updateGalleryCardMetrics(item);
     await loadViewerComments(item.uuid);
   } catch (error) {
     console.error("Editar comentario:", error);
@@ -1154,8 +1207,9 @@ async function submitViewerComment(event) {
 
     if (input) input.value = "";
     item.comments = Number(result.comments ?? item.comments ?? 0);
-    item.activityAt = new Date().toISOString();
+    item.activityAt = result.activityAt || result.commentedAt || new Date().toISOString();
     updateViewerCommentCount(item.comments);
+    updateGalleryCardMetrics(item);
     await loadViewerComments(item.uuid);
   } catch (error) {
     console.error("Comentario:", error);
@@ -1275,7 +1329,7 @@ async function addMoment(typeId, index) {
     item.momentEntries = result.momentEntries || [];
     item.activityAt = result.activityAt || item.activityAt;
     renderViewerMoments(item);
-    renderGalleryItems(liveItems, galleryContext.showInfo);
+    updateGalleryCardMetrics(item);
   } catch (error) {
     console.error("Momento:", error);
     window.alert(error.message || "No fue posible guardar el momento.");
@@ -2631,6 +2685,8 @@ async function recordViewerView(item) {
     // El backend ya incrementó Views + IndiceActividad + IndiceTendencia.
     // Reflejamos inmediatamente el nuevo total en la tarjeta visible.
     item.views = Number(result.views ?? item.views ?? 0);
+    if (result.activityAt) item.activityAt = result.activityAt;
+    updateGalleryCardMetrics(item);
     updateGalleryViewCount(item);
   } catch (error) {
     console.warn("No fue posible registrar la vista.", error);
@@ -2662,16 +2718,9 @@ function closeViewer() {
   if (viewer) viewer.remove();
   currentViewerIndex = -1;
 
-  if (galleryContext.mode === "trend" && galleryContext.url) {
-    loadGalleryItems(
-      galleryContext.url,
-      galleryContext.showInfo,
-      galleryContext.sort,
-      galleryContext.mode,
-      galleryContext.page,
-      galleryContext.momentType || ""
-    );
-  }
+  // No recargamos la galería al cerrar. Los contadores ya fueron
+  // actualizados en memoria y en las tarjetas mientras el visor estaba abierto.
+  // La próxima apertura de la pantalla obtiene el orden definitivo desde el backend.
 }
 
 function renderSections() {
