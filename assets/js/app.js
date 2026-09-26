@@ -1363,7 +1363,7 @@ function presentationIconMarkup() {
 }
 
 function presentationButtonMarkup(label = "Modo SHOW") {
-  return `<button type="button" class="gallery-presentation-button" onclick="startPresentation()" title="Iniciar Modo SHOW">${presentationIconMarkup()}<span>${escapeHtml(label)}</span></button>`;
+  return `<button type="button" class="gallery-presentation-button" onclick="startPresentation()" title="Iniciar Modo SHOW" aria-label="Iniciar Modo SHOW">${presentationIconMarkup()}</button>`;
 }
 
 const PRESENTATION_PHOTO_MS = 5000; // 5 segundos por foto; los videos avanzan al terminar.
@@ -1401,25 +1401,26 @@ function stopPresentation() {
 
 function togglePresentationPause() {
   if (!presentationState.active) return;
-  if (presentationState.video) {
-    if (presentationState.video.paused) {
-      presentationState.video.play().catch(() => {});
-      presentationState.paused = false;
-    } else {
-      presentationState.video.pause();
-      presentationState.paused = true;
-    }
-  } else {
-    presentationState.paused = !presentationState.paused;
-    if (presentationState.paused) clearPresentationTimer();
-    else schedulePresentationPhoto();
-  }
+
+  // Los videos se muestran dentro del visor de Google Drive. Al ser un iframe
+  // de otro dominio, el navegador no permite controlar play/pause desde la app.
+  // En video el usuario puede usar los controles del propio reproductor o
+  // avanzar con ▶. Para fotos sí controlamos la pausa normalmente.
+  if (presentationState.video) return;
+
+  presentationState.paused = !presentationState.paused;
+  if (presentationState.paused) clearPresentationTimer();
+  else schedulePresentationPhoto();
   updatePresentationControls();
 }
 
 function updatePresentationControls() {
   const pause = document.querySelector(".presentation-pause-button");
-  if (pause) pause.textContent = presentationState.paused ? "▶" : "Ⅱ";
+  if (pause) {
+    pause.textContent = presentationState.paused ? "▶" : "Ⅱ";
+    pause.disabled = Boolean(presentationState.video);
+    pause.title = presentationState.video ? "La pausa del video se controla desde Google Drive" : (presentationState.paused ? "Continuar" : "Pausar");
+  }
   const counter = document.querySelector(".presentation-counter");
   if (counter) counter.textContent = `${Math.max(0, presentationState.index + 1)} / ${presentationState.items.length}`;
 }
@@ -1526,7 +1527,24 @@ function schedulePresentationPhoto() {
 }
 
 function presentationMediaUrl(item) {
-  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(String(item.fileId || ""))}`;
+  // En Modo SHOW usamos el reproductor de Google Drive, igual que el visor
+  // normal de la app. El enlace directo de descarga no es fiable para <video>
+  // con archivos de Drive (puede devolver una página de descarga en lugar del
+  // stream de video).
+  return `https://drive.google.com/file/d/${encodeURIComponent(String(item.fileId || ""))}/preview?rm=minimal&autoplay=1`;
+}
+
+async function getPresentationVideoDuration(item) {
+  if (!item?.uuid) return 0;
+  try {
+    const response = await fetch(`${UPLOAD_ENDPOINT}?action=videoMeta&uuid=${encodeURIComponent(item.uuid)}&_=${Date.now()}`);
+    const result = await response.json();
+    if (!result.success) return 0;
+    return Math.max(0, Number(result.durationMs || 0));
+  } catch (error) {
+    console.warn("No fue posible obtener la duración del video para Modo SHOW.", error);
+    return 0;
+  }
 }
 
 async function renderPresentationItem() {
@@ -1537,7 +1555,7 @@ async function renderPresentationItem() {
   if (!item) { stopPresentation(); return; }
 
   if (presentationState.video) {
-    try { presentationState.video.pause(); } catch (_) {}
+    try { presentationState.video.removeAttribute("src"); } catch (_) {}
     presentationState.video = null;
   }
 
@@ -1556,42 +1574,35 @@ async function renderPresentationItem() {
     return;
   }
 
-  const video = document.createElement("video");
-  video.className = "presentation-video";
-  video.autoplay = true;
-  video.controls = false;
-  video.playsInline = true;
-  video.preload = "auto";
-  video.src = presentationMediaUrl(item);
-  video.addEventListener("ended", () => {
-    if (presentationState.active && presentationState.video === video) showNextPresentationItem();
-  });
-  video.addEventListener("playing", () => {
-    presentationState.paused = false;
-    updatePresentationControls();
-  });
-  video.addEventListener("pause", () => {
-    if (presentationState.active && presentationState.video === video && !video.ended) {
-      presentationState.paused = true;
-      updatePresentationControls();
-    }
-  });
-  video.addEventListener("error", () => {
-    if (!presentationState.active || presentationState.video !== video) return;
-    stage.innerHTML = `<div class="presentation-video-error"><div>⚠️ No se pudo reproducir este video en Modo SHOW.</div><button type="button" onclick="openViewerFromPresentation()">Abrir video normalmente</button></div>`;
-    presentationState.video = null;
-    presentationState.paused = true;
-    updatePresentationControls();
-  }, { once: true });
+  // El visor de Drive sí reproduce los videos que ya funcionan en la app.
+  // Para que SHOW pueda avanzar automáticamente, consultamos al backend la
+  // duración real del archivo y programamos el siguiente recuerdo.
+  const durationMs = await getPresentationVideoDuration(item);
+  if (!presentationState.active || presentationState.items[presentationState.index]?.uuid !== item.uuid) return;
+
+  const frame = document.createElement("iframe");
+  frame.className = "presentation-video presentation-video-frame";
+  frame.src = presentationMediaUrl(item);
+  frame.allow = "autoplay; fullscreen";
+  frame.allowFullscreen = true;
+  frame.setAttribute("title", "Video del recuerdo");
+  frame.setAttribute("loading", "eager");
 
   stage.innerHTML = "";
-  stage.appendChild(video);
-  presentationState.video = video;
-  try {
-    await video.play();
-  } catch (error) {
-    presentationState.paused = true;
-    updatePresentationControls();
+  stage.appendChild(frame);
+  presentationState.video = frame;
+  presentationState.paused = false;
+  updatePresentationControls();
+
+  if (durationMs > 0) {
+    presentationState.timer = window.setTimeout(() => {
+      if (presentationState.active && presentationState.video === frame) showNextPresentationItem();
+    }, durationMs + 1200);
+  } else {
+    // No inventamos una duración. Si Drive no devuelve metadata, dejamos el
+    // video abierto para que pueda verse completo y el usuario puede avanzar
+    // manualmente con el botón ▶/siguiente.
+    stage.insertAdjacentHTML("beforeend", `<div class="presentation-video-no-duration">El video está reproduciéndose. Usa ▶ para pasar al siguiente.</div>`);
   }
 }
 
@@ -3705,7 +3716,7 @@ function renderViewerPeopleOverlays(item) {
   document.head.appendChild(style);
 })();
 
-/* v1.0.47 - Modo SHOW / Presentación */
+/* v1.0.48 - Modo SHOW / Presentación: reproducción de videos mediante visor Drive */
 (function injectPresentationStyles() {
   if (document.getElementById("presentationStyles")) return;
   const style = document.createElement("style");
@@ -3714,10 +3725,11 @@ function renderViewerPeopleOverlays(item) {
     .gallery-heading-with-action { display:flex; align-items:center; justify-content:space-between; gap:14px; }
     .gallery-heading-with-action > div:first-child { min-width:0; }
     .gallery-presentation-button {
-      display:inline-flex; align-items:center; justify-content:center; gap:7px;
-      flex:0 0 auto; border:1px solid #ddd; border-radius:10px; padding:9px 12px;
-      background:#fff; color:#333; font:inherit; font-size:13px; font-weight:700;
-      cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.04);
+      display:inline-flex; align-items:center; justify-content:center;
+      flex:0 0 auto; width:42px; height:42px; padding:8px;
+      border:1px solid #ddd; border-radius:50%;
+      background:#fff; color:#333; font:inherit; cursor:pointer;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
     }
     .gallery-presentation-button:hover { background:#f7f7f7; }
     .presentation-icon { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
@@ -3764,22 +3776,22 @@ function renderViewerPeopleOverlays(item) {
       background:rgba(0,0,0,.5); color:#fff; font-size:25px; line-height:1; cursor:pointer;
     }
     .presentation-controls .presentation-pause-button { font-size:18px; }
+    .presentation-controls button:disabled { opacity:.28; cursor:default; }
     .presentation-hint {
       position:absolute; right:18px; bottom:28px; z-index:2; font-size:11px; opacity:.42;
       pointer-events:none;
     }
-    .presentation-video-error {
-      max-width:460px; padding:28px; text-align:center; border:1px solid rgba(255,255,255,.18);
-      border-radius:14px; background:#111; color:#fff; line-height:1.5;
+    .presentation-video-frame {
+      border:0; object-fit:contain;
     }
-    .presentation-video-error button {
-      margin-top:16px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
-      padding:9px 13px; background:#222; color:#fff; font:inherit; cursor:pointer;
+    .presentation-video-no-duration {
+      position:absolute; left:50%; bottom:78px; transform:translateX(-50%);
+      max-width:90%; padding:8px 12px; border-radius:9px;
+      background:rgba(0,0,0,.68); color:#fff; font-size:12px; text-align:center;
     }
     @media (max-width: 640px) {
       .gallery-heading-with-action { align-items:flex-start; }
-      .gallery-presentation-button span { display:none; }
-      .gallery-presentation-button { width:42px; height:40px; padding:8px; }
+      .gallery-presentation-button { width:40px; height:40px; padding:7px; }
       .presentation-topbar { padding:10px 10px; }
       .presentation-title strong { display:none; }
       .presentation-hint { display:none; }
