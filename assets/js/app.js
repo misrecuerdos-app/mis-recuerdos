@@ -1358,6 +1358,264 @@ function setGalleryHeaderBack(action) {
   if (backButton) backButton.setAttribute("onclick", action);
 }
 
+function presentationIconMarkup() {
+  return `<svg class="presentation-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><path d="M10 8.5v7l6-3.5-6-3.5z"></path></svg>`;
+}
+
+function presentationButtonMarkup(label = "Modo SHOW") {
+  return `<button type="button" class="gallery-presentation-button" onclick="startPresentation()" title="Iniciar Modo SHOW">${presentationIconMarkup()}<span>${escapeHtml(label)}</span></button>`;
+}
+
+const PRESENTATION_PHOTO_MS = 5000; // 5 segundos por foto; los videos avanzan al terminar.
+let presentationState = {
+  active: false,
+  items: [],
+  index: -1,
+  timer: null,
+  video: null,
+  paused: false,
+  loading: false
+};
+
+function clearPresentationTimer() {
+  if (presentationState.timer) {
+    window.clearTimeout(presentationState.timer);
+    presentationState.timer = null;
+  }
+}
+
+function stopPresentation() {
+  clearPresentationTimer();
+  if (presentationState.video) {
+    try {
+      presentationState.video.pause();
+      presentationState.video.removeAttribute("src");
+      presentationState.video.load();
+    } catch (_) {}
+  }
+  document.querySelector(".presentation-overlay")?.remove();
+  document.body.classList.remove("presentation-open");
+  presentationState = { active: false, items: [], index: -1, timer: null, video: null, paused: false, loading: false };
+  document.removeEventListener("keydown", handlePresentationKeydown);
+}
+
+function togglePresentationPause() {
+  if (!presentationState.active) return;
+  if (presentationState.video) {
+    if (presentationState.video.paused) {
+      presentationState.video.play().catch(() => {});
+      presentationState.paused = false;
+    } else {
+      presentationState.video.pause();
+      presentationState.paused = true;
+    }
+  } else {
+    presentationState.paused = !presentationState.paused;
+    if (presentationState.paused) clearPresentationTimer();
+    else schedulePresentationPhoto();
+  }
+  updatePresentationControls();
+}
+
+function updatePresentationControls() {
+  const pause = document.querySelector(".presentation-pause-button");
+  if (pause) pause.textContent = presentationState.paused ? "▶" : "Ⅱ";
+  const counter = document.querySelector(".presentation-counter");
+  if (counter) counter.textContent = `${Math.max(0, presentationState.index + 1)} / ${presentationState.items.length}`;
+}
+
+function handlePresentationKeydown(event) {
+  if (!presentationState.active) return;
+  if (event.key === "Escape") { event.preventDefault(); stopPresentation(); return; }
+  if (event.key === "ArrowRight") { event.preventDefault(); showNextPresentationItem(); return; }
+  if (event.key === "ArrowLeft") { event.preventDefault(); showPreviousPresentationItem(); return; }
+  if (event.key === " ") { event.preventDefault(); togglePresentationPause(); }
+}
+
+async function fetchPresentationPage(page, pageSize = 30) {
+  const url = String(galleryContext.url || "");
+  if (!url) return { items: [], totalPages: 1 };
+  const separator = url.includes("?") ? "&" : "?";
+  const optionalIdentity = AppState?.security?.user?.id
+    ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
+    : "";
+  const typeParam = galleryContext.momentType
+    ? `&type=${encodeURIComponent(galleryContext.momentType)}`
+    : "";
+  const sortParam = `&sort=${encodeURIComponent(galleryContext.sort || "recent")}`;
+  const response = await fetch(`${url}${separator}page=${page}&pageSize=${pageSize}${sortParam}${typeParam}${optionalIdentity}&_=${Date.now()}`);
+  const result = await response.json();
+  if (!result.success) throw new Error(result.error || "No fue posible preparar el Modo SHOW.");
+  return {
+    items: Array.isArray(result.items) ? result.items.map(normalizeGalleryItem) : [],
+    totalPages: Math.max(1, Number(result.totalPages || 1))
+  };
+}
+
+async function getPresentationItems() {
+  // Mis Subidas ya trae todo el conjunto en liveItems; no hacemos llamadas innecesarias.
+  if (galleryContext.mode === "mine") return [...liveItems];
+
+  const first = await fetchPresentationPage(1, 30);
+  const all = [...first.items];
+  for (let page = 2; page <= first.totalPages; page++) {
+    const next = await fetchPresentationPage(page, 30);
+    all.push(...next.items);
+  }
+
+  const seen = new Set();
+  return sortGalleryItems(all.filter(item => {
+    const uuid = String(item.uuid || "");
+    if (!uuid || seen.has(uuid)) return false;
+    seen.add(uuid);
+    return true;
+  }), galleryContext.sort || "recent");
+}
+
+async function startPresentation() {
+  if (presentationState.loading) return;
+  presentationState.loading = true;
+  try {
+    const items = await getPresentationItems();
+    if (!items.length) {
+      presentationState.loading = false;
+      window.alert("No hay recuerdos para iniciar el Modo SHOW.");
+      return;
+    }
+
+    presentationState = {
+      active: true,
+      items,
+      index: 0,
+      timer: null,
+      video: null,
+      paused: false,
+      loading: false
+    };
+
+    document.body.classList.add("presentation-open");
+    document.body.insertAdjacentHTML("beforeend", `
+      <div class="presentation-overlay" role="dialog" aria-modal="true" aria-label="Modo SHOW">
+        <div class="presentation-stage" id="presentationStage"></div>
+        <div class="presentation-topbar">
+          <div class="presentation-title">${presentationIconMarkup()}<strong>Modo SHOW</strong></div>
+          <div class="presentation-counter">1 / ${items.length}</div>
+          <button type="button" class="presentation-close-button" onclick="stopPresentation()" aria-label="Salir del Modo SHOW">×</button>
+        </div>
+        <div class="presentation-controls">
+          <button type="button" onclick="showPreviousPresentationItem()" aria-label="Anterior">‹</button>
+          <button type="button" class="presentation-pause-button" onclick="togglePresentationPause()" aria-label="Pausar">Ⅱ</button>
+          <button type="button" onclick="showNextPresentationItem()" aria-label="Siguiente">›</button>
+        </div>
+        <div class="presentation-hint">Espacio pausa · ← → cambia · Esc salir</div>
+      </div>
+    `);
+    document.addEventListener("keydown", handlePresentationKeydown);
+    await renderPresentationItem();
+  } catch (error) {
+    presentationState.loading = false;
+    console.error("Modo SHOW:", error);
+    window.alert(error.message || "No fue posible iniciar el Modo SHOW.");
+  }
+}
+
+function schedulePresentationPhoto() {
+  clearPresentationTimer();
+  if (!presentationState.active || presentationState.paused || presentationState.video) return;
+  presentationState.timer = window.setTimeout(showNextPresentationItem, PRESENTATION_PHOTO_MS);
+}
+
+function presentationMediaUrl(item) {
+  return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(String(item.fileId || ""))}`;
+}
+
+async function renderPresentationItem() {
+  clearPresentationTimer();
+  if (!presentationState.active) return;
+
+  const item = presentationState.items[presentationState.index];
+  if (!item) { stopPresentation(); return; }
+
+  if (presentationState.video) {
+    try { presentationState.video.pause(); } catch (_) {}
+    presentationState.video = null;
+  }
+
+  const stage = document.getElementById("presentationStage");
+  if (!stage) return;
+  const isVideo = String(item.mimeType || "").startsWith("video/");
+  stage.innerHTML = `<div class="presentation-loading">${isVideo ? "Cargando video…" : ""}</div>`;
+  updatePresentationControls();
+
+  // La vista cuenta al entrar al recuerdo, igual que en el visor normal.
+  recordViewerView(item);
+
+  if (!isVideo) {
+    stage.innerHTML = `<img class="presentation-image" src="https://drive.google.com/thumbnail?id=${encodeURIComponent(item.fileId)}&sz=w2000" alt="" draggable="false">`;
+    schedulePresentationPhoto();
+    return;
+  }
+
+  const video = document.createElement("video");
+  video.className = "presentation-video";
+  video.autoplay = true;
+  video.controls = false;
+  video.playsInline = true;
+  video.preload = "auto";
+  video.src = presentationMediaUrl(item);
+  video.addEventListener("ended", () => {
+    if (presentationState.active && presentationState.video === video) showNextPresentationItem();
+  });
+  video.addEventListener("playing", () => {
+    presentationState.paused = false;
+    updatePresentationControls();
+  });
+  video.addEventListener("pause", () => {
+    if (presentationState.active && presentationState.video === video && !video.ended) {
+      presentationState.paused = true;
+      updatePresentationControls();
+    }
+  });
+  video.addEventListener("error", () => {
+    if (!presentationState.active || presentationState.video !== video) return;
+    stage.innerHTML = `<div class="presentation-video-error"><div>⚠️ No se pudo reproducir este video en Modo SHOW.</div><button type="button" onclick="openViewerFromPresentation()">Abrir video normalmente</button></div>`;
+    presentationState.video = null;
+    presentationState.paused = true;
+    updatePresentationControls();
+  }, { once: true });
+
+  stage.innerHTML = "";
+  stage.appendChild(video);
+  presentationState.video = video;
+  try {
+    await video.play();
+  } catch (error) {
+    presentationState.paused = true;
+    updatePresentationControls();
+  }
+}
+
+function openViewerFromPresentation() {
+  const item = presentationState.items[presentationState.index];
+  const index = liveItems.findIndex(current => current.uuid === item?.uuid);
+  stopPresentation();
+  if (index >= 0) openViewer(index);
+}
+
+function showNextPresentationItem() {
+  if (!presentationState.active || !presentationState.items.length) return;
+  presentationState.index = (presentationState.index + 1) % presentationState.items.length;
+  presentationState.paused = false;
+  renderPresentationItem();
+}
+
+function showPreviousPresentationItem() {
+  if (!presentationState.active || !presentationState.items.length) return;
+  presentationState.index = (presentationState.index - 1 + presentationState.items.length) % presentationState.items.length;
+  presentationState.paused = false;
+  renderPresentationItem();
+}
+
 function showGalleryMode(mode) {
   setGalleryHeaderBack("showGallerySections()");
   const galleryBody = document.getElementById("galleryBody");
@@ -1385,9 +1643,9 @@ function showGalleryMode(mode) {
 
   if (mode === "trend") {
     galleryBody.innerHTML = `
-      <div class="live-heading">
-        <h2>🔥 Tendencia</h2>
-        <p>Los recuerdos que más se están viendo.</p>
+      <div class="live-heading gallery-heading-with-action">
+        <div><h2>🔥 Tendencia</h2><p>Los recuerdos que más se están viendo.</p></div>
+        ${presentationButtonMarkup()}
       </div>
       <div id="liveContent" class="live-content">Cargando tendencia...</div>
     `;
@@ -1397,9 +1655,9 @@ function showGalleryMode(mode) {
 
   if (mode === "moments") {
     galleryBody.innerHTML = `
-      <div class="live-heading">
-        <h2>✨ Momentos</h2>
-        <p>Recuerdos que alguien marcó como un momento especial.</p>
+      <div class="live-heading gallery-heading-with-action">
+        <div><h2>✨ Momentos</h2><p>Recuerdos que alguien marcó como un momento especial.</p></div>
+        ${presentationButtonMarkup()}
       </div>
       <div class="moment-filter-control">
         <button type="button" class="moment-filter-select" onclick="toggleMomentFilterMenu(event)">✨ Filtrar Momentos <span id="momentFilterLabel">Todos</span> ▾</button>
@@ -1415,9 +1673,9 @@ function showGalleryMode(mode) {
   }
 
   galleryBody.innerHTML = `
-    <div class="live-heading">
-      <h2>Reciente</h2>
-      <p>Los recuerdos con actividad más reciente.</p>
+    <div class="live-heading gallery-heading-with-action">
+      <div><h2>Reciente</h2><p>Los recuerdos con actividad más reciente.</p></div>
+      ${presentationButtonMarkup()}
     </div>
     <button class="gallery-sections-link" onclick="showGallerySections()">📂 Explorar por sección</button>
     <div id="liveContent" class="live-content">Cargando recuerdos...</div>
@@ -1519,9 +1777,9 @@ function openGallerySection(sectionId) {
   setGalleryHeaderBack("showGallerySections()");
   const galleryBody = document.getElementById("galleryBody");
   galleryBody.innerHTML = `
-    <div class="live-heading">
-      <h2>${getSectionName(sectionId)}</h2>
-      <p>Recuerdos de esta sección.</p>
+    <div class="live-heading gallery-heading-with-action">
+      <div><h2>${getSectionName(sectionId)}</h2><p>Recuerdos de esta sección.</p></div>
+      ${presentationButtonMarkup()}
     </div>
     <div id="liveContent" class="live-content">Cargando...</div>
   `;
@@ -1632,7 +1890,7 @@ async function openGalleryPersonResults(invitadoId) {
   const results = document.getElementById("galleryPeopleResults");
   if (!results || !person) return;
   results.hidden = false;
-  results.innerHTML = `<div class="gallery-person-results-header"><button type="button" onclick="closeGalleryPersonResults()">← Personas</button><h3>🏷️ ${escapeHtml(person.nombreInvitado)}</h3></div><div id="liveContent" class="live-content"><div class="gallery-page-loading"><span class="gallery-loading-spinner"></span><span>Cargando recuerdos…</span></div></div><div id="galleryPagination"></div>`;
+  results.innerHTML = `<div class="gallery-person-results-header"><button type="button" onclick="closeGalleryPersonResults()">← Personas</button><h3>🏷️ ${escapeHtml(person.nombreInvitado)}</h3>${presentationButtonMarkup()}</div><div id="liveContent" class="live-content"><div class="gallery-page-loading"><span class="gallery-loading-spinner"></span><span>Cargando recuerdos…</span></div></div><div id="galleryPagination"></div>`;
   document.querySelector(".gallery-people-search-panel")?.setAttribute("hidden", "hidden");
   galleryContext = { ...galleryContext, mode: "person", sort: "recent", page: 1, momentType: "" };
   await loadGalleryItems(`${UPLOAD_ENDPOINT}?action=personItems&invitadoId=${encodeURIComponent(invitadoId)}`, true, "recent", "person", 1, "");
@@ -1692,9 +1950,9 @@ function renderMine() {
 
       <section class="live-page">
 
-        <div class="live-heading">
-          <h2>Mis recuerdos</h2>
-          <p>Todas las fotos y videos que has compartido.</p>
+        <div class="live-heading gallery-heading-with-action">
+          <div><h2>Mis recuerdos</h2><p>Todas las fotos y videos que has compartido.</p></div>
+          ${presentationButtonMarkup()}
         </div>
         <button
   id="mineSelectButton"
@@ -1753,6 +2011,7 @@ async function loadMineGrouped() {
 
     const items = result.items || [];
     liveItems = items;
+    galleryContext = { ...galleryContext, mode: "mine", sort: "recent", url: "", page: 1, pageSize: 9, totalItems: items.length, totalPages: 1, momentType: "" };
 
     if (!items.length) {
       container.innerHTML = `
@@ -3442,6 +3701,90 @@ function renderViewerPeopleOverlays(item) {
     .storage-config-note { margin-top:14px !important; font-size:11px !important; color:#888 !important; }
     .tutorial-config-card { text-align:left; }
     .tutorial-video-placeholder { height:180px; margin:16px 0; border-radius:12px; background:#f1f1f1; display:flex; align-items:center; justify-content:center; font-size:42px; color:#777; border:1px solid #e2e2e2; }
+  `;
+  document.head.appendChild(style);
+})();
+
+/* v1.0.47 - Modo SHOW / Presentación */
+(function injectPresentationStyles() {
+  if (document.getElementById("presentationStyles")) return;
+  const style = document.createElement("style");
+  style.id = "presentationStyles";
+  style.textContent = `
+    .gallery-heading-with-action { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    .gallery-heading-with-action > div:first-child { min-width:0; }
+    .gallery-presentation-button {
+      display:inline-flex; align-items:center; justify-content:center; gap:7px;
+      flex:0 0 auto; border:1px solid #ddd; border-radius:10px; padding:9px 12px;
+      background:#fff; color:#333; font:inherit; font-size:13px; font-weight:700;
+      cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.04);
+    }
+    .gallery-presentation-button:hover { background:#f7f7f7; }
+    .presentation-icon { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .presentation-icon path { fill:currentColor; stroke:none; }
+    .gallery-person-results-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .gallery-person-results-header .gallery-presentation-button { margin-left:auto; }
+
+    body.presentation-open { overflow:hidden; }
+    .presentation-overlay {
+      position:fixed; inset:0; z-index:99999; background:#000; color:#fff;
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+      touch-action:none;
+    }
+    .presentation-stage {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      background:#000;
+    }
+    .presentation-image, .presentation-video {
+      display:block; width:100%; height:100%; object-fit:contain; background:#000;
+    }
+    .presentation-loading {
+      color:#fff; font-size:16px; opacity:.8;
+    }
+    .presentation-topbar {
+      position:absolute; top:0; left:0; right:0; z-index:2;
+      display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+      padding:14px 18px; background:linear-gradient(to bottom, rgba(0,0,0,.7), rgba(0,0,0,0));
+      pointer-events:none;
+    }
+    .presentation-title { display:flex; align-items:center; gap:8px; font-size:15px; pointer-events:auto; }
+    .presentation-title .presentation-icon { width:22px; height:22px; }
+    .presentation-counter { justify-self:center; font-size:13px; opacity:.85; }
+    .presentation-close-button {
+      justify-self:end; pointer-events:auto; width:40px; height:40px; border:0; border-radius:50%;
+      background:rgba(0,0,0,.45); color:#fff; font-size:28px; line-height:1; cursor:pointer;
+    }
+    .presentation-controls {
+      position:absolute; left:50%; bottom:24px; transform:translateX(-50%); z-index:3;
+      display:flex; align-items:center; gap:10px; opacity:.55; transition:opacity .2s;
+    }
+    .presentation-controls:hover, .presentation-overlay:focus-within .presentation-controls { opacity:1; }
+    .presentation-controls button {
+      width:46px; height:42px; border:1px solid rgba(255,255,255,.35); border-radius:22px;
+      background:rgba(0,0,0,.5); color:#fff; font-size:25px; line-height:1; cursor:pointer;
+    }
+    .presentation-controls .presentation-pause-button { font-size:18px; }
+    .presentation-hint {
+      position:absolute; right:18px; bottom:28px; z-index:2; font-size:11px; opacity:.42;
+      pointer-events:none;
+    }
+    .presentation-video-error {
+      max-width:460px; padding:28px; text-align:center; border:1px solid rgba(255,255,255,.18);
+      border-radius:14px; background:#111; color:#fff; line-height:1.5;
+    }
+    .presentation-video-error button {
+      margin-top:16px; border:1px solid rgba(255,255,255,.35); border-radius:9px;
+      padding:9px 13px; background:#222; color:#fff; font:inherit; cursor:pointer;
+    }
+    @media (max-width: 640px) {
+      .gallery-heading-with-action { align-items:flex-start; }
+      .gallery-presentation-button span { display:none; }
+      .gallery-presentation-button { width:42px; height:40px; padding:8px; }
+      .presentation-topbar { padding:10px 10px; }
+      .presentation-title strong { display:none; }
+      .presentation-hint { display:none; }
+      .presentation-controls { bottom:14px; }
+    }
   `;
   document.head.appendChild(style);
 })();
