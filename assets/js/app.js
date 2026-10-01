@@ -26,17 +26,21 @@ function requireGoogleIdentity() {
 Auth.initialize();
 
 function getUploaderEmail() {
+  // La sesión real de Google tiene prioridad sobre valores antiguos de
+  // AppState/localStorage. Esto evita que un correo viejo (por ejemplo
+  // nombre@gmail.com) siga identificando al usuario después de cambiar de cuenta.
+  const authCurrent = typeof Auth?.getCurrentUser === "function"
+    ? Auth.getCurrentUser()?.email
+    : "";
   const candidates = [
+    Auth?.currentUser?.email,
+    Auth?.user?.email,
+    authCurrent,
     AppState?.security?.user?.email,
     AppState?.auth?.email,
     AppState?.auth?.user?.email,
     AppState?.user?.email,
     AppState?.device?.email,
-    Auth?.currentUser?.email,
-    Auth?.user?.email,
-    typeof Auth?.getCurrentUser === "function"
-      ? Auth.getCurrentUser()?.email
-      : "",
     localStorage.getItem("recuerdos-user-email"),
     localStorage.getItem("google-user-email"),
     localStorage.getItem("user-email")
@@ -1004,10 +1008,17 @@ function updateLikeIndicators() {
 function updateGalleryCardMetrics(item) {
   if (!item?.uuid) return;
 
-  document.querySelectorAll("[data-gallery-index]").forEach(card => {
-    const index = Number(card.dataset.galleryIndex);
-    const cardItem = liveItems[index];
-    if (!cardItem || cardItem.uuid !== item.uuid) return;
+  // Localiza la tarjeta por UUID, no solamente por índice. El índice puede
+  // cambiar con paginación/ordenamiento mientras el visor permanece abierto.
+  const matchingCards = document.querySelectorAll(`[data-gallery-uuid="${CSS.escape(String(item.uuid))}"]`);
+  const cards = matchingCards.length
+    ? Array.from(matchingCards)
+    : Array.from(document.querySelectorAll("[data-gallery-index]")).filter(card => {
+        const index = Number(card.dataset.galleryIndex);
+        return liveItems[index]?.uuid === item.uuid;
+      });
+
+  cards.forEach(card => {
 
     const actions = Array.from(card.querySelectorAll(".live-action"));
     if (galleryContext.mode === "trend") {
@@ -1293,7 +1304,7 @@ function renderGalleryItems(items, showInfo = true) {
         <button type="button" class="live-action ${item.momentByMe ? "moment-marked" : ""}" onclick="handleCardMoment(event, ${index})" title="Momento">✨ <span>${Number(item.moments || 0)}</span></button>`;
 
     return `
-      <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" onclick="handleGalleryTap(event, ${index})">
+      <article class="live-card ${item.likedByMe ? "liked-by-me" : ""}" data-gallery-index="${index}" data-gallery-uuid="${escapeHtml(item.uuid || "")}" onclick="handleGalleryTap(event, ${index})">
         <div class="live-media">
           <img class="live-thumbnail" src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w400" alt="" loading="lazy" decoding="async" data-file-id="${item.fileId}" data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}" onload="handleDriveThumbnailLoad(this)" onerror="handleDriveThumbnailError(this)">
           ${item.mimeType.startsWith("video/") ? `<div class="live-play-icon">▶</div>` : ""}
