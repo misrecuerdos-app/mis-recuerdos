@@ -4,6 +4,7 @@ const UPLOAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbyIDrzh6dqbdaZu
 let liveItems = [];
 let selectedMineItems = new Set();
 let mineSelectionMode = false;
+let eventAdminState = { loaded: false, isOwner: false };
 let currentViewerIndex = -1;
 let currentInfoTopic = null;
 let viewerCommentsRequestToken = 0;
@@ -349,14 +350,31 @@ function getStorageConfig() {
   return getLocalEventConfig();
 }
 
+async function ensureEventAdminStatus(force = false) {
+  if (!force && eventAdminState.loaded) return eventAdminState.isOwner;
+  try {
+    const identity = requireGoogleIdentity();
+    const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=adminStatus&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+    const result = await response.json();
+    eventAdminState = { loaded: true, isOwner: Boolean(result.success && result.isOwner) };
+    return eventAdminState.isOwner;
+  } catch (error) {
+    console.warn("No fue posible consultar el rol de administrador del evento.", error);
+    eventAdminState = { loaded: true, isOwner: false };
+    return false;
+  }
+}
+
 async function fetchEventConfigFromServer() {
   const identity = requireGoogleIdentity();
   const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
   const result = await response.json();
   if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
-  const config = result.config || {};
-  if (result.configured) localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
-  return { configured: Boolean(result.configured), config };
+  eventAdminState = { loaded: true, isOwner: Boolean(result.isOwner) };
+  const config = result.isOwner ? (result.config || {}) : {};
+  if (result.isOwner && result.configured) localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(config));
+  if (!result.isOwner) localStorage.removeItem(STORAGE_CONFIG_KEY);
+  return { configured: Boolean(result.configured), isOwner: Boolean(result.isOwner), config, error: result.error || "" };
 }
 
 function setStorageFormValues(cfg) {
@@ -452,13 +470,18 @@ async function showStorageConfig() {
         <button type="button" class="storage-config-primary" onclick="saveStorageConfig()">💾 Guardar configuración</button>
         <button type="button" onclick="clearStorageConfig()">Limpiar configuración</button>
       </div>
-      <p class="storage-config-note">Solo el Google ID que configuró este evento puede consultar, modificar o borrar estos datos.</p>
+      <p class="storage-config-note">Solo el Google ID que creó/configuró este evento puede consultar, modificar o borrar estos datos.</p>
     </div>`;
   document.body.appendChild(overlay);
 
   try {
     const result = await fetchEventConfigFromServer();
-    if (result.configured) {
+    if (!result.isOwner) {
+      ["storageGoogleAccount","storagePhotosUrl","storageVideosUrl","storageSheetUrl"].forEach(id => { const el=document.getElementById(id); if(el) el.disabled=true; });
+      document.querySelectorAll(".storage-config-actions button").forEach(button => { button.disabled=true; });
+      const status=document.getElementById("storageConfigStatus");
+      if(status) status.textContent = result.error || "🔒 Solo el administrador que creó este evento puede modificar estas ligas.";
+    } else if (result.configured) {
       setStorageFormValues(result.config);
       const status=document.getElementById("storageConfigStatus");
       if(status) status.textContent="🟢 Configuración del evento cargada.";
@@ -517,12 +540,18 @@ async function loadServerEventConfigForGuestList() {
   const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
   const result = await response.json();
   if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
+  eventAdminState = { loaded: true, isOwner: Boolean(result.isOwner) };
+  if (!result.isOwner) {
+    localStorage.removeItem(STORAGE_CONFIG_KEY);
+    localStorage.removeItem(GUEST_LIST_URL_KEY);
+    return { isOwner: false, config: {} };
+  }
   if (result.configured) {
     const merged = { ...getLocalEventConfig(), ...(result.config || {}) };
     localStorage.setItem(STORAGE_CONFIG_KEY, JSON.stringify(merged));
-    return merged;
+    return { isOwner: true, config: merged };
   }
-  return getLocalEventConfig();
+  return { isOwner: true, config: getLocalEventConfig() };
 }
 
 async function saveGuestListUrl() {
@@ -639,11 +668,21 @@ async function showGuestListConfig() {
     </div>`;
   document.body.appendChild(overlay);
   try {
-    const cfg = await loadServerEventConfigForGuestList();
+    const result = await loadServerEventConfigForGuestList();
+    const cfg = result.config || {};
     const url = String(cfg.guestListUrl || "").trim();
     if (url) localStorage.setItem(GUEST_LIST_URL_KEY, url); else localStorage.removeItem(GUEST_LIST_URL_KEY);
     const input=document.getElementById("guestListUrlInput"); if(input) input.value=url;
-    const status=document.getElementById("guestListConfigStatus"); if(status) status.textContent=url ? "🟢 Liga del evento cargada." : "No hay una liga configurada todavía.";
+    const status=document.getElementById("guestListConfigStatus");
+    if (!result.isOwner) {
+      if (input) input.disabled = true;
+      document.querySelectorAll(".guest-list-config-actions button").forEach(button => {
+        if (button.id !== "guestListOpenButton") button.disabled = true;
+      });
+      if(status) status.textContent = "🔒 Solo el administrador que creó este evento puede definir esta liga.";
+    } else if(status) {
+      status.textContent=url ? "🟢 Liga del evento cargada." : "No hay una liga configurada todavía.";
+    }
     updateGuestListConfigActions();
   } catch (error) {
     const status=document.getElementById("guestListConfigStatus"); if(status) status.textContent=`🔴 ${error.message || "No fue posible consultar la configuración."}`;
@@ -1815,6 +1854,7 @@ async function loadGalleryItems(url, showInfo = true, sort = "recent", mode = "r
   };
 
   try {
+    await ensureEventAdminStatus();
     const separator = url.includes("?") ? "&" : "?";
     const optionalIdentity = AppState?.security?.user?.id
       ? `&guestGoogleId=${encodeURIComponent(String(AppState.security.user.id))}`
@@ -2003,6 +2043,7 @@ async function loadMineGrouped() {
   const container = document.getElementById("mineContent");
 
   try {
+    await ensureEventAdminStatus();
     const identity = requireGoogleIdentity();
     const params = new URLSearchParams({
       action: "mine",
@@ -2433,6 +2474,7 @@ function openViewer(index, openPanel = "none") {
         <button type="button" class="media-viewer-moment-button" onclick="openViewerMoments()" title="Momentos" aria-label="Abrir Momentos">✨ ${Number(item.moments || 0)}</button>
         <button type="button" class="media-viewer-tag-button" onclick="toggleViewerPeople()" title="Etiquetar personas" aria-label="Etiquetar personas">🏷️ <span id="viewerPeopleCount" class="media-viewer-tag-count">0</span></button>
         <button class="media-viewer-share-button" type="button" onclick="handleViewerShare(event)" aria-label="Compartir recuerdo" title="Compartir recuerdo">📤 Compartir</button>
+        ${eventAdminState.isOwner ? `<button class="media-viewer-admin-delete-button" type="button" onclick="deleteCurrentViewerItem(event)" aria-label="Eliminar recuerdo" title="Eliminar recuerdo">🗑️</button>` : ""}
       </div>
 
       <section class="viewer-people-panel closed" aria-label="Personas">
@@ -2977,6 +3019,53 @@ function updateGalleryViewCount(item) {
   });
 }
 
+
+async function deleteCurrentViewerItem(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const item = liveItems[currentViewerIndex];
+  if (!item?.fileId || !eventAdminState.isOwner) return;
+
+  const confirmed = window.confirm(
+    `¿Eliminar este recuerdo?\n\n${item.storedFileName || "Archivo"}\n\nEsta acción no se puede deshacer.`
+  );
+  if (!confirmed) return;
+
+  const button = document.querySelector(".media-viewer-admin-delete-button");
+  if (button) { button.disabled = true; button.textContent = "Eliminando…"; }
+
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "delete", fileId: item.fileId, ...requireGoogleIdentity() })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible eliminar el recuerdo.");
+
+    closeViewer();
+    liveItems = liveItems.filter(entry => entry.uuid !== item.uuid);
+
+    if (galleryContext.mode === "mine") {
+      renderMine();
+      return;
+    }
+
+    if (galleryContext.url) {
+      await loadGalleryItems(
+        galleryContext.url,
+        galleryContext.showInfo,
+        galleryContext.sort,
+        galleryContext.mode,
+        Math.min(Number(galleryContext.page || 1), Number(galleryContext.totalPages || 1)),
+        galleryContext.momentType || ""
+      );
+    }
+  } catch (error) {
+    console.error("Eliminar como administrador:", error);
+    window.alert(error.message || "No fue posible eliminar el recuerdo.");
+    if (button) { button.disabled = false; button.textContent = "🗑️"; }
+  }
+}
 
 function closeViewer() {
   // v1.0.29: los temporizadores pertenecían al reproductor HTML5
@@ -3712,6 +3801,23 @@ function renderViewerPeopleOverlays(item) {
     .storage-config-note { margin-top:14px !important; font-size:11px !important; color:#888 !important; }
     .tutorial-config-card { text-align:left; }
     .tutorial-video-placeholder { height:180px; margin:16px 0; border-radius:12px; background:#f1f1f1; display:flex; align-items:center; justify-content:center; font-size:42px; color:#777; border:1px solid #e2e2e2; }
+  `;
+  document.head.appendChild(style);
+})();
+
+/* v1.0.49 - Administrador del evento: puede eliminar cualquier recuerdo */
+(function injectEventAdminStyles() {
+  if (document.getElementById("eventAdminStyles")) return;
+  const style = document.createElement("style");
+  style.id = "eventAdminStyles";
+  style.textContent = `
+    .media-viewer-admin-delete-button {
+      border:1px solid #ddd; background:#fff; color:#555; border-radius:9px;
+      min-width:38px; min-height:38px; padding:7px 9px; cursor:pointer;
+      font-size:17px; line-height:1;
+    }
+    .media-viewer-admin-delete-button:hover { background:#f7f7f7; }
+    .media-viewer-admin-delete-button:disabled { opacity:.55; cursor:wait; }
   `;
   document.head.appendChild(style);
 })();
