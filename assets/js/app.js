@@ -354,7 +354,7 @@ async function ensureEventAdminStatus(force = false) {
   if (!force && eventAdminState.loaded) return eventAdminState.isOwner;
   try {
     const identity = requireGoogleIdentity();
-    const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=adminStatus&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+    const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=adminStatus&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&uploaderEmail=${encodeURIComponent(identity.uploaderEmail)}&_=${Date.now()}`);
     const result = await response.json();
     eventAdminState = { loaded: true, isOwner: Boolean(result.success && result.isOwner) };
     return eventAdminState.isOwner;
@@ -367,7 +367,7 @@ async function ensureEventAdminStatus(force = false) {
 
 async function fetchEventConfigFromServer() {
   const identity = requireGoogleIdentity();
-  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&uploaderEmail=${encodeURIComponent(identity.uploaderEmail)}&_=${Date.now()}`);
   const result = await response.json();
   if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
   eventAdminState = { loaded: true, isOwner: Boolean(result.isOwner) };
@@ -537,7 +537,7 @@ function getGuestListUrl() {
 
 async function loadServerEventConfigForGuestList() {
   const identity = requireGoogleIdentity();
-  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&_=${Date.now()}`);
+  const response = await fetch(`${EVENT_CONFIG_ENDPOINT}?action=eventConfig&guestGoogleId=${encodeURIComponent(identity.guestGoogleId)}&uploaderEmail=${encodeURIComponent(identity.uploaderEmail)}&_=${Date.now()}`);
   const result = await response.json();
   if (!result.success) throw new Error(result.error || "No tienes permiso para consultar la configuración.");
   eventAdminState = { loaded: true, isOwner: Boolean(result.isOwner) };
@@ -1300,6 +1300,15 @@ function renderGalleryItems(items, showInfo = true) {
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
             ${trendActions}
           </div>
+          ${eventAdminState.isOwner ? `
+            <button
+              type="button"
+              class="gallery-admin-delete-button"
+              onclick="deleteAdminGalleryItem(event, ${index})"
+              aria-label="Eliminar recuerdo"
+              title="Eliminar recuerdo"
+            >🗑️</button>
+          ` : ""}
         </div>
         ${bottomInfo}
       </article>
@@ -1969,6 +1978,13 @@ function changeGalleryPage(page) {
   const nextPage = Math.min(Math.max(1, Number(page || 1)), totalPages);
   if (nextPage === Number(galleryContext.page || 1)) return;
   window.scrollTo({ top: 0, behavior: "smooth" });
+
+  if (galleryContext.mode === "mine") {
+    galleryContext.page = nextPage;
+    renderMinePage();
+    return;
+  }
+
   loadGalleryItems(galleryContext.url, galleryContext.showInfo, galleryContext.sort, galleryContext.mode, nextPage, galleryContext.momentType || "");
 }
 
@@ -2041,6 +2057,7 @@ function renderMine() {
 }
 async function loadMineGrouped() {
   const container = document.getElementById("mineContent");
+  if (!container) return;
 
   try {
     await ensureEventAdminStatus();
@@ -2054,100 +2071,123 @@ async function loadMineGrouped() {
     });
 
     const response = await fetch(`${UPLOAD_ENDPOINT}?${params.toString()}`);
-
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error("No fue posible cargar Mis Subidas.");
+      throw new Error(result.error || "No fue posible cargar Mis Subidas.");
     }
 
-    const items = result.items || [];
-    liveItems = items;
-    galleryContext = { ...galleryContext, mode: "mine", sort: "recent", url: "", page: 1, pageSize: 9, totalItems: items.length, totalPages: 1, momentType: "" };
+    // Conservamos todos los elementos en memoria para que la paginación sea
+    // inmediata y para que Modo SHOW pueda recorrer todo el conjunto.
+    liveItems = (result.items || []).map(normalizeGalleryItem);
+    liveItems.sort((a, b) =>
+      galleryItemTimestamp(b, "uploadedAt") - galleryItemTimestamp(a, "uploadedAt")
+    );
 
-    if (!items.length) {
-      container.innerHTML = `
-        <div class="live-empty">
-          Aún no has compartido recuerdos.
-        </div>
-      `;
-      return;
-    }
+    galleryContext = {
+      ...galleryContext,
+      mode: "mine",
+      sort: "recent",
+      url: "",
+      page: 1,
+      pageSize: 9,
+      totalItems: liveItems.length,
+      totalPages: Math.max(1, Math.ceil(liveItems.length / 9)),
+      momentType: ""
+    };
 
-    const sectionsWithItems = AppState.event.sections
-      .map(section => ({
-        ...section,
-        items: items.filter(item => item.sectionId === section.id)
-      }))
-      .filter(section => section.items.length > 0);
-
-    container.innerHTML = sectionsWithItems
-      .map(section => `
-        <section class="mine-section-group">
-          <h3 class="mine-section-title">
-            ${section.icon}
-            ${section.id === "general" ? "General" : section.name}
-          </h3>
-
-          <div class="mine-section-grid">
-            ${section.items.map(item => {
-              const itemIndex = items.findIndex(
-                currentItem => currentItem.fileId === item.fileId
-              );
-
-              return `
-                <div class="mine-thumbnail-wrapper">
-  <button
-    class="mine-thumbnail"
-    onclick="toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
-    aria-label="Abrir recuerdo"
-  >
-                  <img
-                    src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
-                    alt=""
-                    loading="lazy"
-                    data-file-id="${item.fileId}"
-                    data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}"
-                    onerror="handleDriveThumbnailError(this)"
-                  >
-   
-                  ${item.mimeType.startsWith("video/")
-                    ? `<span class="live-play-icon">▶</span>`
-                    : ""
-                  }
-                </button>
-               ${mineSelectionMode ? `
-    <div class="mine-checkbox">
-    <input
-      id="mineCheckbox-${item.fileId}"
-      type="checkbox"
-      ${selectedMineItems.has(item.fileId) ? "checked" : ""}
-      onclick="event.stopPropagation(); toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
-    >
-  </div>
-` : ""}
-</div>
-              `;
-            }).join("")}
-          </div>
-        </section>
-      `)
-      .join("");
-
-    updateMineDeleteBar();
-
-    refreshPendingDriveThumbnails(container);
-  renderGalleryPagination();
-
+    renderMinePage();
   } catch (error) {
     container.innerHTML = `
       <div class="live-error">
         ${error.message || "Error al cargar Mis Subidas."}
       </div>
     `;
-
     console.error(error);
   }
+}
+
+function renderMinePage() {
+  const container = document.getElementById("mineContent");
+  if (!container) return;
+
+  const pageSize = 9;
+  const totalItems = liveItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const requestedPage = Number(galleryContext.page || 1);
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  const start = (page - 1) * pageSize;
+  const pageItems = liveItems.slice(start, start + pageSize);
+
+  galleryContext = {
+    ...galleryContext,
+    mode: "mine",
+    page,
+    pageSize,
+    totalItems,
+    totalPages
+  };
+
+  if (!totalItems) {
+    container.innerHTML = `<div class="live-empty">Aún no has compartido recuerdos.</div>`;
+    renderGalleryPagination();
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="mine-page-date-note">Ordenados por fecha de subida, del más reciente al más antiguo.</div>
+    <div class="mine-section-grid">
+      ${pageItems.map(item => {
+        const itemIndex = liveItems.findIndex(currentItem => currentItem.uuid === item.uuid);
+        const section = AppState.event.sections.find(s => s.id === item.sectionId);
+        const sectionLabel = section ? `${section.icon} ${section.id === "general" ? "General" : section.name}` : "";
+        return `
+          <div class="mine-thumbnail-wrapper">
+            <button
+              class="mine-thumbnail"
+              onclick="toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
+              aria-label="Abrir recuerdo"
+            >
+              <img
+                src="https://drive.google.com/thumbnail?id=${item.fileId}&sz=w800"
+                alt=""
+                loading="lazy"
+                data-file-id="${item.fileId}"
+                data-is-video="${item.mimeType.startsWith("video/") ? "true" : "false"}"
+                onload="handleDriveThumbnailLoad(this)"
+                onerror="handleDriveThumbnailError(this)"
+              >
+              ${item.mimeType.startsWith("video/") ? `<span class="live-play-icon">▶</span>` : ""}
+              ${sectionLabel ? `<span class="mine-section-badge">${escapeHtml(sectionLabel)}</span>` : ""}
+            </button>
+            ${eventAdminState.isOwner ? `
+              <button
+                type="button"
+                class="mine-admin-delete-button"
+                onclick="deleteAdminMineItem(event, ${itemIndex})"
+                aria-label="Eliminar recuerdo"
+                title="Eliminar recuerdo"
+              >🗑️</button>
+            ` : ""}
+            ${mineSelectionMode ? `
+              <div class="mine-checkbox">
+                <input
+                  id="mineCheckbox-${item.fileId}"
+                  type="checkbox"
+                  ${selectedMineItems.has(item.fileId) ? "checked" : ""}
+                  onclick="event.stopPropagation(); toggleMineSelection(event, '${item.fileId}', ${itemIndex})"
+                >
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  updateMineDeleteBar();
+  refreshPendingDriveThumbnails(container);
+  renderGalleryPagination();
 }
 function updateMineDeleteBar() {
   const deleteBar = document.getElementById("mineDeleteBar");
@@ -3020,6 +3060,60 @@ function updateGalleryViewCount(item) {
 }
 
 
+async function deleteAdminGalleryItem(event, index) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const item = liveItems[Number(index)];
+  if (!item?.fileId || !eventAdminState.isOwner) return;
+
+  const confirmed = window.confirm(
+    `¿Eliminar este recuerdo?\n\n${item.storedFileName || "Archivo"}\n\nEsta acción no se puede deshacer.`
+  );
+  if (!confirmed) return;
+
+  const button = event?.currentTarget;
+  if (button) { button.disabled = true; button.textContent = "…"; }
+
+  try {
+    const response = await fetch(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify({ action: "delete", fileId: item.fileId, ...requireGoogleIdentity() })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || "No fue posible eliminar el recuerdo.");
+
+    liveItems = liveItems.filter(entry => entry.uuid !== item.uuid);
+
+    if (galleryContext.mode === "mine") {
+      galleryContext.page = Math.min(
+        Number(galleryContext.page || 1),
+        Math.max(1, Math.ceil(liveItems.length / Number(galleryContext.pageSize || 9)))
+      );
+      renderMinePage();
+      return;
+    }
+
+    if (galleryContext.url) {
+      await loadGalleryItems(
+        galleryContext.url,
+        galleryContext.showInfo,
+        galleryContext.sort,
+        galleryContext.mode,
+        galleryContext.page,
+        galleryContext.momentType || ""
+      );
+    }
+  } catch (error) {
+    console.error("Eliminar desde tarjeta:", error);
+    window.alert(error.message || "No fue posible eliminar el recuerdo.");
+    if (button) { button.disabled = false; button.textContent = "🗑️"; }
+  }
+}
+
+async function deleteAdminMineItem(event, index) {
+  return deleteAdminGalleryItem(event, index);
+}
+
 async function deleteCurrentViewerItem(event) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
@@ -3818,6 +3912,28 @@ function renderViewerPeopleOverlays(item) {
     }
     .media-viewer-admin-delete-button:hover { background:#f7f7f7; }
     .media-viewer-admin-delete-button:disabled { opacity:.55; cursor:wait; }
+    .live-media, .mine-thumbnail-wrapper { position:relative; }
+    .gallery-admin-delete-button, .mine-admin-delete-button {
+      position:absolute; top:8px; right:8px; z-index:8;
+      width:36px; height:36px; padding:0;
+      border:1px solid rgba(255,255,255,.8); border-radius:50%;
+      background:rgba(255,255,255,.94); color:#555;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-size:17px; line-height:1; cursor:pointer;
+      box-shadow:0 1px 5px rgba(0,0,0,.18);
+    }
+    .gallery-admin-delete-button:hover, .mine-admin-delete-button:hover { background:#fff; }
+    .gallery-admin-delete-button:disabled, .mine-admin-delete-button:disabled { opacity:.55; cursor:wait; }
+    .mine-section-badge {
+      position:absolute; left:7px; bottom:7px; z-index:4;
+      max-width:calc(100% - 14px); padding:4px 7px;
+      border-radius:8px; background:rgba(0,0,0,.62); color:#fff;
+      font-size:10px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      pointer-events:none;
+    }
+    .mine-page-date-note {
+      margin:0 0 10px; font-size:12px; color:#777; text-align:left;
+    }
   `;
   document.head.appendChild(style);
 })();
