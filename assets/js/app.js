@@ -2044,6 +2044,7 @@ function renderMine() {
     Eliminar (0)
   </button>
 </div>
+  <div id="galleryPagination" class="gallery-pagination"></div>
       </section>
  
       ${UI.bottomNav({
