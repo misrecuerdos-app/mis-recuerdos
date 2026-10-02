@@ -1326,15 +1326,6 @@ function renderGalleryItems(items, showInfo = true) {
           <div class="live-social-actions" aria-label="Acciones del recuerdo">
             ${trendActions}
           </div>
-          ${eventAdminState.isOwner ? `
-            <button
-              type="button"
-              class="gallery-admin-delete-button"
-              onclick="deleteAdminGalleryItem(event, ${index})"
-              aria-label="Eliminar recuerdo"
-              title="Eliminar recuerdo"
-            >🗑️</button>
-          ` : ""}
         </div>
         ${bottomInfo}
       </article>
@@ -2187,15 +2178,6 @@ function renderMinePage() {
               ${item.mimeType.startsWith("video/") ? `<span class="live-play-icon">▶</span>` : ""}
               ${sectionLabel ? `<span class="mine-section-badge">${escapeHtml(sectionLabel)}</span>` : ""}
             </button>
-            ${eventAdminState.isOwner ? `
-              <button
-                type="button"
-                class="mine-admin-delete-button"
-                onclick="deleteAdminMineItem(event, ${itemIndex})"
-                aria-label="Eliminar recuerdo"
-                title="Eliminar recuerdo"
-              >🗑️</button>
-            ` : ""}
             ${mineSelectionMode ? `
               <div class="mine-checkbox">
                 <input
