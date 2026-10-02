@@ -33,11 +33,14 @@ function getUploaderEmail() {
     ? Auth.getCurrentUser()?.email
     : "";
   const candidates = [
+    // La identidad que la aplicación muestra como sesión activa es la fuente
+    // de verdad. Auth/localStorage pueden conservar una cuenta anterior.
+    AppState?.security?.user?.email,
+    AppState?.auth?.user?.email,
+    AppState?.auth?.email,
     Auth?.currentUser?.email,
     Auth?.user?.email,
     authCurrent,
-    AppState?.security?.user?.email,
-    AppState?.auth?.email,
     AppState?.auth?.user?.email,
     AppState?.user?.email,
     AppState?.device?.email,
@@ -1010,9 +1013,11 @@ function updateGalleryCardMetrics(item) {
 
   // Localiza la tarjeta por UUID, no solamente por índice. El índice puede
   // cambiar con paginación/ordenamiento mientras el visor permanece abierto.
-  const matchingCards = document.querySelectorAll(`[data-gallery-uuid="${CSS.escape(String(item.uuid))}"]`);
+  const uuid = String(item.uuid);
+  const matchingCards = Array.from(document.querySelectorAll("[data-gallery-uuid]"))
+    .filter(card => String(card.getAttribute("data-gallery-uuid") || "") === uuid);
   const cards = matchingCards.length
-    ? Array.from(matchingCards)
+    ? matchingCards
     : Array.from(document.querySelectorAll("[data-gallery-index]")).filter(card => {
         const index = Number(card.dataset.galleryIndex);
         return liveItems[index]?.uuid === item.uuid;
