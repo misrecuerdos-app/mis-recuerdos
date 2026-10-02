@@ -403,9 +403,19 @@ async function saveStorageConfig() {
   const videos = String(document.getElementById("storageVideosUrl")?.value || "").trim();
   const sheet = String(document.getElementById("storageSheetUrl")?.value || "").trim();
   const status = document.getElementById("storageConfigStatus");
-  const fields = [["la cuenta de Google",account],["la carpeta de Fotos",photos],["la carpeta de Videos",videos],["el Google Sheet",sheet]];
-  const bad = fields.find(([,v]) => v && !/^https?:\/\//i.test(v));
-  if (bad) { if(status) status.textContent = `🔴 Revisa ${bad[0]}. Usa una dirección que comience con https://`; return; }
+  // La cuenta del evento es un correo electrónico; solo los recursos de Drive/Sheets son URLs.
+  const emailOk = !account || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account);
+  if (!emailOk) {
+    if (status) status.textContent = "🔴 Revisa la cuenta de Google. Escribe un correo electrónico válido.";
+    return;
+  }
+
+  const urlFields = [["la carpeta de Fotos",photos],["la carpeta de Videos",videos],["el Google Sheet",sheet]];
+  const badUrl = urlFields.find(([,v]) => v && !/^https?:\/\//i.test(v));
+  if (badUrl) {
+    if (status) status.textContent = `🔴 Revisa ${badUrl[0]}. Usa una dirección que comience con https://`;
+    return;
+  }
 
   try {
     const identity = requireGoogleIdentity();
